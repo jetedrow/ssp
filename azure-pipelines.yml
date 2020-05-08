@@ -26,6 +26,7 @@ steps:
   inputs:
     command: 'test'
     projects: 'src/**/*.Tests.csproj'
+    arguments: '--no-build'
 
 - task: DotNetCoreCLI@2
   displayName: 'dotnet publish'
@@ -33,7 +34,7 @@ steps:
     command: 'publish'
     publishWebProjects: false
     projects: 'src/**/CCS.SspNet.csproj'
-    arguments: '--output $(Build.ArtifactStagingDirectory)'
+    arguments: '--output $(Build.ArtifactStagingDirectory) --no-build'
 
 
 - task: PublishBuildArtifacts@1
