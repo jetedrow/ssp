@@ -26,6 +26,7 @@ steps:
   inputs:
     command: 'test'
     projects: 'src/**/*.Tests.csproj'
+    arguments: '--collect "Code coverage"'
 
 - task: DotNetCoreCLI@2
   displayName: 'dotnet publish'
