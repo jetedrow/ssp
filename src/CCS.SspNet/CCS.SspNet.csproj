@@ -2,6 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>SSP.net</PackageId>
+    <Authors>Jeff Tedrow</Authors>
+    <Company />
+    <Product>SSP.net</Product>
+    <Description>.NET Standard Library for Integrating with devices using SSP (Smiley Secure Prototcol).</Description>
+    <Copyright>©2020 All Rights Reserved</Copyright>
+    <RepositoryUrl>https://github.com/jetedrow/ssp</RepositoryUrl>
   </PropertyGroup>
 
 </Project>
