@@ -28,12 +28,16 @@ steps:
     projects: 'src/**/*.Tests.csproj'
 
 - task: DotNetCoreCLI@2
+  displayName: 'dotnet publish'
   inputs:
     command: 'publish'
     publishWebProjects: false
     projects: 'src/**/CCS.SspNet.csproj'
+    arguments: '--output $(Build.ArtifactStagingDirectory)'
+
 
 - task: PublishBuildArtifacts@1
+  displayName: 'Publish Build Artifacts'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'drop'
