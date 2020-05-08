@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30011.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCS.SspNet", "CCS.SspNet\CCS.SspNet.csproj", "{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCS.SspNet.Tests", "CCS.SspNet.Tests\CCS.SspNet.Tests.csproj", "{1912ACB2-E975-4C42-B7BF-0257D65B4493}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1912ACB2-E975-4C42-B7BF-0257D65B4493}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1912ACB2-E975-4C42-B7BF-0257D65B4493}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1912ACB2-E975-4C42-B7BF-0257D65B4493}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1912ACB2-E975-4C42-B7BF-0257D65B4493}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {73B62ABD-0B49-4643-AF41-8158FCAFE4D8}
+	EndGlobalSection
+EndGlobal
