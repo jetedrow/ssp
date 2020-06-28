@@ -10,22 +10,21 @@ namespace CCS.SspNet.Communication
     class SspStreamReader : IDisposable
     {
         private readonly byte[] packetBuffer;
-        private readonly Stream stream;
         private short currentLength = 0;
 
         public SspStreamReader(Stream stream) 
         {
             if (!stream.CanRead) throw new ArgumentException("Stream does not support reading.", nameof(stream));
             packetBuffer = new byte[260];
-            this.stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            this.BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
         }
 
-        public Stream BaseStream => stream;
+        public Stream BaseStream { get; }
         public bool EndOfStream => throw new NotImplementedException();
 
         public void Close()
         {
-            stream.Close();
+            BaseStream.Close();
         }
 
         public void DiscardBufferedData()
@@ -45,7 +44,7 @@ namespace CCS.SspNet.Communication
             var bytesRemaining = 3; // Set so STX, SEQ/ADDR, AND LEN can be read before setting actual bytes remaining in packet.
             while (!packetComplete)
             {
-                var curByte = stream.ReadByte();
+                var curByte = BaseStream.ReadByte();
                 if (curByte == -1)
                 {
                     await Task.Delay(50); // There is no data yet, so we delay.
@@ -112,7 +111,6 @@ namespace CCS.SspNet.Communication
                 if (disposing)
                 {
                     // Dispose managed state (managed objects).
-                    stream.Dispose();
                 }
 
                 // Free unmanaged resources (unmanaged objects) and override a finalizer below.
