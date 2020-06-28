@@ -11,7 +11,7 @@ namespace CCS.SspNet.Tests
     /// </summary>
     public class SspDeviceEmulator
     {
-        private NamedPipeServerStream server;
+        private readonly NamedPipeServerStream server;
         private readonly string pipeName;
 
         public SspDeviceEmulator()
