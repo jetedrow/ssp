@@ -5,7 +5,9 @@ using System.Text;
 
 namespace CCS.SspNet
 {
+#pragma warning disable CA1027 // Mark enums with FlagsAttribute
     public enum SspCommand : byte
+#pragma warning restore CA1027 // Mark enums with FlagsAttribute
     {
         [Display(Name = "Reset", Description = "Reset the device.")]
         Reset = 0x01,
