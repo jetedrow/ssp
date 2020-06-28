@@ -7,6 +7,15 @@ trigger:
 - master
 - dev/*
 
+pr:
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - src/*
+    exclude:
+
 pool:
   vmImage: 'ubuntu-latest'
 

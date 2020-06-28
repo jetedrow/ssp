@@ -3,9 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCS.SspNet", "CCS.SspNet\CCS.SspNet.csproj", "{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CCS.SspNet", "CCS.SspNet\CCS.SspNet.csproj", "{568FEB3A-BC6B-4B8D-B9BE-9678BC5D1BFF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCS.SspNet.Tests", "CCS.SspNet.Tests\CCS.SspNet.Tests.csproj", "{1912ACB2-E975-4C42-B7BF-0257D65B4493}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CCS.SspNet.Tests", "CCS.SspNet.Tests\CCS.SspNet.Tests.csproj", "{1912ACB2-E975-4C42-B7BF-0257D65B4493}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{EE5AC4A8-6E78-4BD9-B3F5-4EA6AE5666BF}"
+	ProjectSection(SolutionItems) = preProject
+		..\.gitignore = ..\.gitignore
+		..\azure-pipelines.yml = ..\azure-pipelines.yml
+		..\README.md = ..\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

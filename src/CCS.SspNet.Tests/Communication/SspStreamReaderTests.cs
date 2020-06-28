@@ -31,6 +31,7 @@ namespace CCS.SspNet.Tests.Communication
             sr.Awaiting(r => r.ReadRawPacketAsync()).Should().CompleteWithin(TimeSpan.FromSeconds(1));
 
         }
+]
 
         [Fact]
         public async Task TestBasicPacketRead()
