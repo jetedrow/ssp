@@ -14,7 +14,6 @@ pr:
   paths:
     include:
     - src/*
-    exclude:
 
 pool:
   vmImage: 'ubuntu-latest'
