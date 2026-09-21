@@ -31,7 +31,7 @@
     <RepositoryUrl>https://github.com/jetedrow/ssp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/jetedrow/ssp</PackageProjectUrl>
-    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
     <PackageTags>ssp;essp;smiley-secure-protocol;innovative-technology;banknote-validator;serial</PackageTags>
   </PropertyGroup>
 
