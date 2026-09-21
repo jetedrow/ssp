@@ -32,18 +32,33 @@ a command looks identical whether or not the link is encrypted.
 ## L2 — command codec
 
 Turns typed requests into payload bytes and payload bytes back into typed responses. This is the
-layer that makes the library survive protocol changes:
+layer that makes the library survive protocol changes.
 
-- The protocol version is **negotiated at connect** and carried on the connection, not compiled in.
-- Each command declares the **minimum protocol version** it needs, so an unsupported command fails
-  with a message naming the version it wanted rather than a bare `COMMAND_NOT_KNOWN` from the device.
-- Response parsers are selected by **(device type, protocol version)**. `SetupRequest` is the
-  motivating case: its payload differs per device, and channel values widened from two bytes to four
-  at protocol version 6. Supporting a new version is a new entry in a table.
-- An unrecognised poll event **degrades to `UnknownPollEvent`** rather than throwing. Newer firmware
-  must never break an older copy of this library.
-- A raw escape hatch stays public, so a device capability the library has not modelled yet does not
-  block anyone.
+`SspMessage` builds a command's data field — the code, then its parameters. `SspReply` splits a
+device's answer into a response code and the rest. Neither knows about framing, addressing or the
+CRC, which all belong to L0.
+
+Reading a poll reply is the part that needs help. A reply is a run of event codes, each followed by
+however many data bytes that event carries, and **nothing on the wire says how many**. So:
+
+- **The protocol version is a required argument, not a default.** It gates events, not commands —
+  see `docs/protocol-support.md`. The same eight bytes are one credit at version 9 and seven events
+  at version 4, and a host reading at the wrong version does not get an error, it gets a wrong
+  answer. Making the version impossible to forget is the only defence.
+- **The payload lengths live in `SspEventTable`, which is data and is immutable.** `WithEvent` returns
+  a new table, so a device newer than this library is supported by adding a row rather than waiting
+  for a release. Supporting a new protocol version is table entries, not a structural change.
+- **An event the table has no length for stops the decode rather than guessing.** There is no way to
+  tell where an unknown event's payload ends and the next code begins, so a guess would report
+  events that never happened — including credits. `SspPollResult` carries the events read before
+  that point, the code it stopped at, and the undecoded bytes; `IsComplete` is how a caller tells.
+  Newer firmware degrades to a partial read, never to an exception or to fiction.
+- **A raw escape hatch stays public.** `SspMessage.Create(byte command, ...)` sends a command code
+  this library has no name for, and an event code it has no name for still arrives with its raw
+  value, so an unmodelled device capability does not block anyone.
+
+The lengths in `SspEventTable.Default` are checked against the 63 poll replies printed in the
+protocol manual that are internally consistent, in `ManualPollExampleTests`.
 
 ## L3 — device facade
 

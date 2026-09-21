@@ -6,28 +6,98 @@ What the library implements today, and against which version of the protocol.
 
 | Document | What it covers | Version in use |
 | --- | --- | --- |
-| ITL GA138, SSP Communications Protocol Manual | The protocol itself: commands, responses, poll events, the encryption layer | Issue 19, protocol version 6 |
+| ITL GA138, SSP Communications Protocol Manual | The protocol itself: commands, responses, poll events, the encryption layer | `GA138_2_2_649A`, issue 2.2, protocol versions 4 to 9 |
 | ITL GA973, SSP Implementation Guide | Worked integration guidance | v2.2 |
 | ITL, Multi-Address SSP Downloading (2015) | Firmware and dataset download over a shared bus, command `0x74` | 2015 |
 
-Innovative Technology's download centre is the authoritative source. If a newer GA138 is obtained,
-add it here and record what changed.
+Innovative Technology's download centre is the authoritative source. These documents are ITL's
+property and are not in this repository; if a newer GA138 is obtained, add it to this table and
+record what changed.
 
 ## Protocol versions
 
-The negotiated protocol version is set with `HostProtocolVersion` (`0x06`) at connect and is carried
-on the connection. Commands declare the minimum version they require.
+The protocol version gates **events, not commands**. A poll reply is a run of event codes, each
+followed by however many data bytes that event carries, and nothing on the wire says how many — the
+host is expected to know in advance. A device sending an event the host had never heard of would
+leave the host unable to find where the next event began, so the rest of the reply would be read as
+nonsense. Raising the version is a host saying "I know the events you are about to send me", and
+the manual is explicit that a host must never set a device higher than it can itself decode.
 
-| Version | Added |
-| --- | --- |
-| 1 | Initial gaming protocol |
-| 2 | Generic commands, coin readers and hoppers, device addressing, encrypted packets |
-| 3 | `SHOW_RESET_EVENTS`, note-cleared-at-reset events |
-| 4 | Barcode ticket commands, revised reject reason codes |
-| 6 | Multi-currency, payout by denomination, 4-byte channel values, lid and calibration events |
+Which *commands* a device accepts is not a function of the version at all; it is a per-device
+command table, which is why no command in the manual carries a minimum version.
 
-Versions 7 and 8 exist on newer hardware. They are not yet modelled; adding one is a table entry per
-command and per response parser, not a structural change.
+The version is read with `SetupRequest` (`0x05`) at connect and set with `HostProtocolVersion`
+(`0x06`).
+
+`SspEventTable` holds the consequences. What each version adds, counted from the manual's own event
+tables:
+
+| Version | Events introduced | Events whose payload changed |
+| --- | --- | --- |
+| 4 | 28, the banknote validator set | — |
+| 5 | 16: coin credit, cashbox, note float, emptying | — |
+| 6 | 23: ticket printer, coin mechanism, cashbox service state | 14 payout and float events gain a per-currency block |
+| 7 | 7: calibration, jam recovery, value added, error during payout | — |
+| 8 | 3: note held in bezel, notes moved at reset | — |
+| 9 | — | `Read` and `NoteCredit` grow from a channel to a country code and value |
+
+Version 6 is the significant one: it is where payout amounts stop being a single figure and become a
+count followed by one block per currency in the dataset, so the same event is a different length on
+a one-currency device than on a three-currency one.
+
+Versions 1 to 3 predate this issue of the manual. Their events are a subset of version 4's, so
+decoding such a device at version 4 is safe.
+
+### Going past version 9
+
+`SspEventTable` is data rather than a switch, and it is immutable, so a device newer than this
+library can be supported without waiting for a release:
+
+```csharp
+var table = SspEventTable.Default
+    .WithEvent(0x7C, firstVersion: 10, SspEventPayload.Fixed(4));
+
+var events = SspPollDecoder.Decode(reply.Data.Span, version: 10, table);
+```
+
+The same applies to commands: `SspMessage.Create(byte command, params byte[] parameters)` sends a
+code this library has no name for.
+
+### Events with no documented size
+
+The manual names five events without giving a payload size anywhere, and prints no worked packet to
+read one off: `CoinsLow` (`0xD3`), `MaintenanceRequired` (`0xC0`), `CoinRejected` (`0xBA`),
+`TicketInBezelAtStartup` (`0xA7`) and `EscrowActive` (`0x8B`).
+
+Guessing zero for these would be a coin flip that reads the rest of the reply out of step whenever
+it lost, so they are declared unknown. A decode that reaches one stops, returns the events it read
+before it, and reports the code it stopped at — `SspPollResult.IsComplete` is how a caller tells.
+A host that knows the real size registers it with `WithEvent`.
+
+Two events go the other way. `SafeJam` (`0xEA`) and `CashboxTamper` (`0x91`) are in no event table
+in this issue of the manual, but earlier issues define them and devices in the field send them, so
+both are in `SspEventTable.Default` with a zero-length payload.
+
+### Errors in the manual's worked examples
+
+The manual prints 72 poll replies as worked examples. All 72 carry a CRC that checks out, and 63 of
+them decode. The other nine are wrong, in three ways, and each one's length byte and CRC were
+computed over its own wrong bytes — so they cannot be told apart from correct packets by checking,
+only by decoding them:
+
+- **Six drop the leading event code.** The `Dispensing`, `Floating`, `Incomplete Payout` and
+  `Coin Credit` examples print only the payload, so `7F 80 05 F0 94 11 00 00 E8 F3` under
+  `Floating` is a four-byte amount with no `0xD7` in front of it. Each decodes once its own code is
+  prepended, which is how they were identified.
+- **Two drop a country code** out of the middle of a payload: the `SmartEmptying` and
+  `ErrorDuringPayout` examples give a count byte and an amount, then no three-letter code.
+- **One prints the wrong code.** The Poll command's own headline example,
+  `7F 80 03 F0 F1 F8 DC 0C`, is captioned "device reset and disabled" and uses `0xF8` — the FAIL
+  response code — where the `Disabled` event `0xE8` belongs. `0xF8` appears in no event table in the
+  manual.
+
+The 63 that are correct are the corpus in `ManualPollExampleTests`. The nine are excluded rather
+than silently corrected, so the corpus stays a record of what the manual actually says.
 
 ## Implementation status
 
@@ -42,7 +112,9 @@ command and per response parser, not a structural change.
 | Framing: timeouts, cancellation and retry | Implemented |
 | Test transport: in-memory stream and device simulator | Implemented |
 | Encryption (eSSP) | Not started |
-| Command codec and version gate | Not started |
+| Command codec: message building, reply parsing | Implemented |
+| Command codec: event table and version gate | Implemented |
+| Command codec: poll event decoding | Implemented |
 | Device facade, procedural | Not started |
 | Device facade, event-driven | Not started |
 | Firmware and dataset download (`0x74`) | Not started |
