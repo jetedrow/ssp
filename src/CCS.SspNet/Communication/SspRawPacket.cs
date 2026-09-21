@@ -19,7 +19,7 @@ namespace CCS.SspNet.Communication
 
         public byte Address { get; set; }
 
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = Array.Empty<byte>();
 
         /// <summary>
         /// Parses the raw bytes to a raw SSP packet.

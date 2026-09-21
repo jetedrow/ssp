@@ -4,9 +4,11 @@ using System;
 using Xunit;
 using FluentAssertions;
 using CCS.SspNet.Exceptions;
+using CCS.SspNet.Tests;
 
 namespace CCS.SSPNet.Tests.Communication
 {
+    [Trait(TestCategories.Name, TestCategories.Fast)]
     public class SspRawPacketTests
     {
         // Simple SYNC command with sequence flag ON, address 0x00, and command of 0x11.

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>SSP.net.Serial</PackageId>
+    <Description>Serial port transport for SSP.net. Opens a System.IO.Ports.SerialPort using SSP's wire defaults and exposes it as a Stream.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CCS.SspNet\CCS.SspNet.csproj" />
+  </ItemGroup>
+
+</Project>
