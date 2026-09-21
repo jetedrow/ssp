@@ -5,11 +5,26 @@ namespace CCS.SspNet.Utilities
     internal static class CrcUtilities
     {
 
-        internal static bool ValidatePacketCrc(byte[] rawPacket)
+        /// <summary>
+        /// Calculates the CRC a complete logical packet should carry.
+        /// </summary>
+        /// <param name="rawPacket">
+        /// A whole packet, including the leading STX and the two CRC bytes.  The CRC covers
+        /// everything between those: the sequence/address byte, the length, and the data.
+        /// </param>
+        internal static (byte LSB, byte MSB) CalculatePacketCrcFor(byte[] rawPacket)
         {
             var crcData = new byte[rawPacket.Length - 3];
             Array.Copy(rawPacket, 1, crcData, 0, rawPacket.Length - 3);
-            var (lsb, msb) = CalculatePacketCrc(crcData);
+            return CalculatePacketCrc(crcData);
+        }
+
+        /// <summary>
+        /// Checks a complete logical packet's CRC against the one it carries.
+        /// </summary>
+        internal static bool ValidatePacketCrc(byte[] rawPacket)
+        {
+            var (lsb, msb) = CalculatePacketCrcFor(rawPacket);
             return ((lsb == rawPacket[rawPacket.Length - 2]) && (msb == rawPacket[rawPacket.Length - 1]));
         }
 

@@ -28,6 +28,9 @@ namespace CCS.SspNet
         [Display(Name = "Failure", Description = "Command failure.")]
         Failure = 0xF8,
 
+        [Display(Name = "Header Failure", Description = "Returned during a firmware or dataset download when the 128-byte ITL header sent with the special block number is not valid for this device.")]
+        HeaderFailure = 0xF9,
+
         [Display(Name = "Key Not Set", Description = "The device is in encrypted communication mode, but the encryption keys have not been negotiated.")]
         KeyNotSet = 0xFA
 
