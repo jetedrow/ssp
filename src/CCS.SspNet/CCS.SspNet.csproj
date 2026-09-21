@@ -1,21 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>SSP.net</PackageId>
-    <Authors>Jeff Tedrow</Authors>
-    <Company />
-    <Product>SSP.net</Product>
-    <Description>.NET Standard Library for Integrating with devices using SSP (Smiley Secure Prototcol).</Description>
-    <Copyright>©2020 All Rights Reserved</Copyright>
-    <RepositoryUrl>https://github.com/jetedrow/ssp</RepositoryUrl>
+    <Description>.NET library for integrating with devices using SSP (Smiley Secure Protocol). Transport-agnostic: drive a device over any Stream, whether serial, network or in-memory.</Description>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
-    <PackageReference Include="System.IO.Ports" Version="4.7.0" />
-    <PackageReference Include="System.Memory" Version="4.5.4" />
+  <!-- net10.0 carries both of these in the shared framework; netstandard2.0 needs the packages. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.ComponentModel.Annotations" />
+    <PackageReference Include="System.Memory" />
   </ItemGroup>
 
 </Project>

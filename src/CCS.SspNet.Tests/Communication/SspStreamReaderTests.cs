@@ -10,6 +10,7 @@ using Xunit;
 
 namespace CCS.SspNet.Tests.Communication
 {
+    [Trait(TestCategories.Name, TestCategories.Fast)]
     public class SspStreamReaderTests
     {
         // Simple SYNC command with sequence flag ON, address 0x00, and command of 0x11.
@@ -20,7 +21,7 @@ namespace CCS.SspNet.Tests.Communication
         private readonly byte[] byteUnstuffedPacket = { 0x7F, 0x80, 0x02, 0x11, 0x7F, 0x65, 0x82 };
 
         [Fact]
-        public void TestBasicPacketReadTimeout()
+        public async Task TestBasicPacketReadTimeout()
         {
             using var ms = new MemoryStream();
             using var sr = new SspStreamReader(ms);
@@ -28,7 +29,7 @@ namespace CCS.SspNet.Tests.Communication
             ms.Write(simplePacket, 0, simplePacket.Length);
             ms.Seek(0, SeekOrigin.Begin);
 
-            sr.Awaiting(r => r.ReadRawPacketAsync()).Should().CompleteWithin(TimeSpan.FromSeconds(1));
+            await sr.Awaiting(r => r.ReadRawPacketAsync()).Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
 
         }
 
@@ -78,7 +79,7 @@ namespace CCS.SspNet.Tests.Communication
         }
 
         [Fact]
-        public void TestByteUnstuffedPacketException()
+        public async Task TestByteUnstuffedPacketException()
         {
             using var ms = new MemoryStream();
             using var sr = new SspStreamReader(ms);
@@ -86,7 +87,7 @@ namespace CCS.SspNet.Tests.Communication
             ms.Write(byteUnstuffedPacket, 0, byteUnstuffedPacket.Length);
             ms.Seek(0, SeekOrigin.Begin);
 
-            sr.Awaiting(r => r.ReadRawPacketAsync()).Should().Throw<PacketFormatException>().WithMessage("Non-byte-stuffed STX byte encountered within packet.");
+            await sr.Awaiting(r => r.ReadRawPacketAsync()).Should().ThrowAsync<PacketFormatException>().WithMessage("Non-byte-stuffed STX byte encountered within packet.");
 
         }
     }
