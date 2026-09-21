@@ -1,132 +1,123 @@
-﻿using CCS.SspNet.Exceptions;
+using CCS.SspNet.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCS.SspNet.Communication
 {
-    class SspStreamReader : IDisposable
+    /// <summary>
+    /// Reads SSP packets from a stream, removing byte stuffing as it goes.
+    /// </summary>
+    /// <remarks>
+    /// Packets returned by this type are logical packets: a single leading
+    /// <see cref="Constants.STX"/> followed by unstuffed bytes.  Nothing above this layer sees
+    /// stuffing.  The reader holds no state between calls, so one instance can read any number of
+    /// consecutive packets from the same stream.
+    /// </remarks>
+    internal sealed class SspStreamReader : IDisposable
     {
-        private readonly byte[] packetBuffer;
-        private short currentLength = 0;
+        private readonly byte[] singleByteBuffer = new byte[1];
+        private bool disposed;
 
-        public SspStreamReader(Stream stream) 
+        public SspStreamReader(Stream stream)
         {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (!stream.CanRead) throw new ArgumentException("Stream does not support reading.", nameof(stream));
-            packetBuffer = new byte[260];
-            this.BaseStream = stream ?? throw new ArgumentNullException(nameof(stream));
+
+            BaseStream = stream;
         }
 
+        /// <summary>Gets the stream being read.</summary>
         public Stream BaseStream { get; }
-        public bool EndOfStream => throw new NotImplementedException();
 
-        public void Close()
-        {
-            BaseStream.Close();
-        }
+        /// <summary>Closes the underlying stream.</summary>
+        public void Close() => BaseStream.Close();
 
-        public void DiscardBufferedData()
+        /// <summary>
+        /// Reads the next SSP packet from the stream.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the read.</param>
+        /// <returns>
+        /// The packet's logical bytes: STX, the combined sequence/address byte, the length, the
+        /// data, and the two CRC bytes, with any byte stuffing removed.
+        /// </returns>
+        /// <exception cref="PacketFormatException">
+        /// A <see cref="Constants.STX"/> inside the packet was not byte stuffed, which means the
+        /// stream is out of step with the sender.
+        /// </exception>
+        /// <exception cref="SspConnectionClosedException">The stream ended mid-packet.</exception>
+        public async Task<byte[]> ReadRawPacketAsync(CancellationToken cancellationToken = default)
         {
-            packetBuffer.AsSpan().Fill(0);
-            currentLength = 0;
+            ThrowIfDisposed();
+
+            // Anything before the start marker is noise from a partial or foreign packet; skip it.
+            // A lone STX can only be a start marker, because every STX within a packet is doubled.
+            byte current;
+            do
+            {
+                current = await ReadByteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            while (current != Constants.STX);
+
+            var packet = new List<byte>(Constants.MaxPacketLength) { Constants.STX };
+
+            // The sequence/address byte, then the length, which tells us how much is left to read.
+            packet.Add(await ReadUnstuffedByteAsync(cancellationToken).ConfigureAwait(false));
+
+            var dataLength = await ReadUnstuffedByteAsync(cancellationToken).ConfigureAwait(false);
+            packet.Add(dataLength);
+
+            // The data, then the two CRC bytes.
+            var remaining = dataLength + 2;
+            for (var i = 0; i < remaining; i++)
+            {
+                packet.Add(await ReadUnstuffedByteAsync(cancellationToken).ConfigureAwait(false));
+            }
+
+            return packet.ToArray();
         }
 
         /// <summary>
-        /// Reads the next SSP packet fromt he input stream.
+        /// Reads one logical byte, collapsing a stuffed <see cref="Constants.STX"/> pair back into a
+        /// single byte.
         /// </summary>
-        /// <returns>The raw bytes of the SSP packet.</returns>
-        public async Task<byte[]> ReadRawPacketAsync()
+        private async Task<byte> ReadUnstuffedByteAsync(CancellationToken cancellationToken)
         {
-            var packetComplete = false;
-            var byteStuffRequired = true;
-            var bytesRemaining = 3; // Set so STX, SEQ/ADDR, AND LEN can be read before setting actual bytes remaining in packet.
-            while (!packetComplete)
+            var b = await ReadByteAsync(cancellationToken).ConfigureAwait(false);
+            if (b != Constants.STX) return b;
+
+            // Inside a packet an STX must always be doubled. A lone one means the sender and the
+            // reader disagree about where this packet starts.
+            var second = await ReadByteAsync(cancellationToken).ConfigureAwait(false);
+            if (second != Constants.STX)
             {
-                var curByte = BaseStream.ReadByte();
-                if (curByte == -1)
-                {
-                    await Task.Delay(50); // There is no data yet, so we delay.
-                    continue;
-                }
-                            
-                byte b = (byte)curByte;
-
-                if (currentLength == 0 && b != Constants.STX)
-                {
-                    // We are waiting for an STX to appear on the stream as the start of a packet.
-                    continue;
-                }
-                else if (byteStuffRequired)
-                {
-                    // If we are waiting for 2nd byte stuffed STX, and the next character is not an STX, the packet was not propperly byte stuffed.
-                    if (b != Constants.STX) throw new PacketFormatException($"Non-byte-stuffed STX byte encountered within packet.");
-                    // We can add this character to the data buffer.
-                    packetBuffer[currentLength] = b;
-                    currentLength++;
-                    bytesRemaining--;
-
-                    byteStuffRequired = false;
-                }
-                else if (b == Constants.STX)
-                {
-                    // This is the beginning of byte stuffing.  We do not read this character into the buffer, but set the flag for the next character.
-                    byteStuffRequired = true;
-                }
-                else if (currentLength == 2)
-                {
-                    // This character will be the length byte from the packet.  It should set the remaining number of bytes to be read (length + 2 CRC bytes).
-                    packetBuffer[currentLength] = b;
-                    currentLength++;
-                    bytesRemaining = 2 + b;
-                }
-                else
-                {
-                    // Normal character.  Read into buffer.
-                    packetBuffer[currentLength] = b;
-                    currentLength++;
-                    bytesRemaining--;
-
-                    if (bytesRemaining == 0)
-                    {
-                        packetComplete = true;
-                    }
-                }
-
+                throw new PacketFormatException("Non-byte-stuffed STX byte encountered within packet.");
             }
 
-            var ret = new byte[currentLength];
-            Array.Copy(packetBuffer, 0, ret, 0, currentLength);
-            return ret;
+            return Constants.STX;
         }
 
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
+        private async Task<byte> ReadByteAsync(CancellationToken cancellationToken)
         {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    // Dispose managed state (managed objects).
-                }
+            var read = await BaseStream.ReadAsync(singleByteBuffer, 0, 1, cancellationToken).ConfigureAwait(false);
+            if (read == 0) throw new SspConnectionClosedException("The stream ended while reading an SSP packet.");
 
-                // Free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // Set large fields to null.
-
-                disposedValue = true;
-            }
+            return singleByteBuffer[0];
         }
 
-        // This code added to correctly implement the disposable pattern.
+        private void ThrowIfDisposed()
+        {
+            if (disposed) throw new ObjectDisposedException(nameof(SspStreamReader));
+        }
+
+        /// <summary>
+        /// Releases the reader.  The underlying stream is not owned by the reader and is left open.
+        /// </summary>
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
+            disposed = true;
         }
-        #endregion
-
     }
 }

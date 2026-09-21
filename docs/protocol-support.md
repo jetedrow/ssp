@@ -34,32 +34,46 @@ command and per response parser, not a structural change.
 | Layer | Status |
 | --- | --- |
 | Framing: CRC-16 | Implemented |
-| Framing: packet parse and serialize | Implemented, defects outstanding — see below |
-| Framing: stream reader | Implemented, defects outstanding |
-| Framing: stream writer | Not started |
-| Framing: sequence flag ownership | Not started |
-| Framing: timeouts and cancellation | Not started |
+| Framing: packet parse and serialize | Implemented |
+| Framing: stream reader | Implemented |
+| Framing: stream writer | Implemented |
+| Framing: byte stuffing, both directions | Implemented |
+| Framing: sequence flag ownership | Implemented |
+| Framing: timeouts, cancellation and retry | Implemented |
+| Test transport: in-memory stream and device simulator | Implemented |
 | Encryption (eSSP) | Not started |
 | Command codec and version gate | Not started |
 | Device facade, procedural | Not started |
 | Device facade, event-driven | Not started |
 | Firmware and dataset download (`0x74`) | Not started |
 
-## Known defects in the existing framing layer
+## Framing defects, and how each was closed
 
-These predate the current work and are cleared in the transport correctness change.
+All nine predated this work and are now fixed. The fixes are covered by tests, and the coverage was
+checked rather than assumed: swapping the old parser back in fails six of the new framing tests,
+including the stuffing round trip, the CRC message and both length bounds. Defects 6 through 8 had
+no code to test against at all — the link layer and the writer did not exist.
 
-1. Byte stuffing is removed twice — once in `SspStreamReader.ReadRawPacketAsync`, again in
-   `SspRawPacket.Parse` — so a packet whose data contains `0x7F` throws when piped from one to the
-   other. `SspRawPacket.GetPacketBytes` applies no stuffing at all on the way out.
-2. `SspStreamReader.currentLength` is never reset on entry, so a second read on the same reader
-   concatenates onto the previous packet.
-3. The CRC mismatch message recomputes over the whole packet, including `STX` and the CRC bytes, and
-   so reports a meaningless expected value.
-4. `SspRawPacket.Parse` rejects packets of 259 bytes or more; a maximal packet is 260.
-5. There is no timeout or cancellation anywhere; a silent device blocks the caller indefinitely.
-6. The sequence flag is a caller-supplied parameter, so nothing implements toggle-on-success and
-   repeat-on-retry.
-7. `SspDeviceEmulator` connects a named pipe client with nothing calling `WaitForConnection`.
-8. `SspStreamWriter` is a shell, and `SspPacket.cs` is entirely commented out.
-9. `SspResponse` is missing `0xF9` `HEADER FAIL`, among others.
+1. **Byte stuffing was applied twice and never on the way out.** It now lives in exactly one place,
+   `SspByteStuffing`, applied by `SspStreamWriter` and removed by `SspStreamReader`. `SspRawPacket`
+   deals only in logical packets and no longer unstuffs. A payload containing `0x7F` round-trips.
+2. **The reader could only be used once.** All of its read state is local to the call, so one
+   instance reads any number of consecutive packets.
+3. **The CRC mismatch message reported a meaningless expected value.** It computed over the whole
+   packet, CRC bytes included; `CalculatePacketCrcFor` is now the single definition of what a
+   packet's CRC should be, and both validation and the error message use it.
+4. **Packets of 259 and 260 bytes were rejected.** The bounds are now `Constants.MinPacketLength`
+   and `Constants.MaxPacketLength`, and a maximum-sized packet parses.
+5. **There was no timeout or cancellation.** Every read and write takes a `CancellationToken`, and
+   `SspLink` applies a per-exchange timeout.
+6. **The sequence flag was unowned.** `SspLink` holds it per device address, advances it for each
+   new command, and repeats it on a retry — which is what lets a device recognise a retransmission
+   and answer from its cache rather than acting twice.
+7. **The named-pipe emulator would have deadlocked.** Replaced by `SspLoopbackStream`, a duplex
+   in-memory stream, and `SspDeviceSimulator`, which speaks the real wire format and can drop or
+   corrupt replies on demand.
+8. **`SspStreamWriter` was a shell and `SspPacket.cs` was commented out.** The writer is
+   implemented; the dead file is gone.
+9. **`SspResponse` was missing `0xF9` HEADER FAIL.** Added, with the meaning given in ITL's
+   multi-address download note. Any further gaps wait on the full GA138, since guessing at response
+   codes is worse than leaving them out.
