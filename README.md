@@ -45,4 +45,6 @@ dotnet test src/CCS.SspNet.sln
 
 ## Licence
 
-GPL-3.0. See [LICENSE](LICENSE).
+LGPL-3.0. You can link this library from a closed-source application; changes to the
+library itself stay under the LGPL. See [LICENSE](LICENSE), and
+[LICENSE.GPL-3.0](LICENSE.GPL-3.0) for the GPL text the LGPL builds on.
