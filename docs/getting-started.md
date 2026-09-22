@@ -54,5 +54,92 @@ Over the network, or anything else, a `Stream` is all that is required — `Netw
 directly, and an I2C or SPI transport needs only a `Stream` implementation. Tests use an in-memory
 stream and need no hardware at all.
 
-The device API that consumes this stream is still being built; see
-[protocol-support.md](protocol-support.md) for what exists today.
+## Talking to a validator
+
+```csharp
+using CCS.SspNet;
+using CCS.SspNet.Protocol;
+using CCS.SspNet.Serial;
+
+using var port = SspSerialPort.Open("COM3");
+var validator = SspDevice.Attach(port.Stream);
+using var bus = validator.Bus;
+
+// Synchronise, agree the highest protocol version both ends can handle, and read the dataset.
+var setup = await validator.ConnectAsync();
+
+Console.WriteLine($"{setup.UnitType}, firmware {setup.FirmwareVersion}, protocol version {validator.ProtocolVersion}");
+foreach (var channel in setup.Channels)
+{
+    Console.WriteLine($"  channel {channel.Number}: {channel.Value} {channel.CountryCode}");
+}
+
+// A validator accepts nothing until both of these have run.
+await validator.SetChannelInhibitsAsync(ushort.MaxValue);   // all sixteen channels
+await validator.EnableAsync();
+
+while (true)
+{
+    var poll = await validator.PollAsync();
+
+    foreach (var e in poll.Events)
+    {
+        if (e.Event == SspEvent.NoteCredit)
+        {
+            // A credit identifies the note by channel up to protocol version 8, and by country
+            // code and value from version 9 — so read the payload, not just its first byte.
+            if (e.Data.Length == 1)
+            {
+                var channel = setup.Channels[e.Data.Span[0] - 1];
+                Console.WriteLine($"credit {channel.Value} {channel.CountryCode}");
+            }
+            else
+            {
+                Console.WriteLine($"credit {SspValues.ReadAmount(e.Data.Span.Slice(3))} " +
+                                  $"{SspValues.ReadCountryCode(e.Data.Span)}");
+            }
+        }
+    }
+
+    if (!poll.IsComplete)
+    {
+        // The device sent an event this library has no payload length for, so the rest of the
+        // reply could not be read. The events above it are still good.
+        Console.WriteLine($"stopped at 0x{poll.StoppedAtCode:X2}: {poll.StopReason}");
+    }
+
+    await Task.Delay(200);
+}
+```
+
+`ConnectAsync` deliberately stops short of enabling the device, so a host can look at what it has
+connected to — the unit type, the firmware, the dataset — before letting it take money.
+
+Polling is not read-only: a validator treats a poll as permission to accept a note sitting in
+escrow. To decide first, call `HoldAsync` to keep the note in escrow for another interval, or
+`RejectBanknoteAsync` to give it back.
+
+## Several devices on one bus
+
+SSP is multi-drop, so a validator and a hopper can share one port, each on its own address:
+
+```csharp
+using var bus = SspBus.Open(port.Stream);
+
+var validator = bus.Device(0x00);
+var hopper = bus.Device(0x10);
+```
+
+The bus serialises exchanges, so calls to the two devices from two threads queue behind each other
+rather than interleaving on the wire, and each address keeps its own sequence flag.
+
+## Commands this library has not modelled
+
+Nothing here is a dead end. A command code with no name on it still goes out:
+
+```csharp
+var reply = await validator.SendAsync(0x7C, new byte[] { 0x01 });
+```
+
+and an event code with no name still arrives, with its raw value on `SspPollEvent.Code`. Registering
+its payload length is described in [protocol-support.md](protocol-support.md).
