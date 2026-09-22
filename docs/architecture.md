@@ -38,6 +38,16 @@ a new packet out of sequence.
 What the protocol documents leave open about this layer, and how each is handled, is in
 `docs/protocol-support.md`.
 
+## Firmware download — outside the layers
+
+`SspFirmwareDownloader` does not sit in the four-layer stack, and that is deliberate. A download
+speaks framed SSP for its opening and then drops the framing entirely to write the file as raw bytes
+at a changed line speed, so it reaches under L2 and L1 to the transport directly. It owns the
+connection exclusively for its length — nothing else may be talking to the device while it flashes —
+which is why it is a standalone operation rather than a method on `SspDevice`. The one thing it needs
+that a plain `Stream` cannot give, the line-speed change, is an optional `ISspBaudRateControl`
+capability the transport may offer.
+
 ## L2 — command codec
 
 Turns typed requests into payload bytes and payload bytes back into typed responses. This is the

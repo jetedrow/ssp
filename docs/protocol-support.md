@@ -187,7 +187,59 @@ negotiate again with the new half.
 | Device facade, protocol version negotiation | Implemented |
 | Device facade, event-driven | Implemented |
 | Poll loop, escrow decisions and fault reporting | Implemented |
-| Firmware and dataset download (`0x74`) | Not started |
+| Firmware and dataset download (`0x0B`) | Implemented (single device) |
+
+## Firmware and dataset download
+
+A device's firmware or note dataset is replaced with `SspFirmwareDownloader.DownloadAsync`. This is
+the one operation the library treats as dangerous: it overwrites the program the device runs, and
+ITL's own guidance says a botched download can damage a unit. So it is its own call, run on its own,
+owning the connection for its whole length rather than being a method on a device that might be
+polling.
+
+The flow is the single-device download from the implementation guide (GA973 §10), and it is two
+shapes of traffic over one connection:
+
+1. **Framed.** A sync, then `ProgramFirmware` (`0x0B` with sub-code `0x03`) which the device answers
+   with a two-byte little-endian block size, then the file's 128-byte header — which the device
+   accepts (`OK`) or rejects (`HEADER_FAIL`, `0xF9`) if the file is not meant for it. A rejection
+   here fails the download before a single byte has been overwritten.
+2. **Raw.** The framing is dropped and the file is written as raw bytes at a faster line speed: the
+   RAM block (a small program the device runs to update itself), a one-byte update code, the header
+   again, then the payload in blocks. Each block is answered by a one-byte XOR checksum the device
+   calculates, which the host checks against its own; a mismatch stops the download rather than
+   letting a corrupted block be written. When the last block lands the device resets, and the
+   download syncs until it answers before reporting itself complete.
+
+`SspFirmwareFile` parses the file first, in memory, with no device attached: it checks the `ITL`
+marker, and splits the header, RAM block and payload where the header's own bytes say they are (the
+update code at byte 6, the RAM block's length as a big-endian number at bytes 7–10). A malformed or
+wrong-shaped file is rejected here, before any download begins.
+
+### The line-speed change
+
+The raw transfer runs at a higher speed than ordinary commands, and a real device switches to it
+whether or not the host follows. A transport that can change speed offers `ISspBaudRateControl`
+(the serial package's port does); the download raises the speed for the transfer and puts it back
+after. A transport with no notion of line speed — an in-memory or network stream — does not offer
+it, and the download runs at the connection's existing speed, which is correct for those transports
+and a thing to know for a serial one.
+
+### What is not implemented
+
+Two assumptions and one gap are worth stating plainly, in the same spirit as the rest of this file:
+
+- **Only the single-device download is implemented.** ITL also defines a multi-address download
+  (command `0x74`) for flashing one device on a shared bus without disturbing the others; its
+  specification is a separate ITL note that is not among the documents here, so it is not built.
+  The extension point is the same `Stream`-and-capability shape the single-device path already uses.
+- **The final partial payload block is sent with its own checksum exchange**, like a full block.
+  The guide describes the remainder as sent "in the same way" but does not restate the checksum
+  step for it explicitly; sending one is the conservative reading and is what the simulator checks.
+- **This path is validated against the simulator, not real hardware.** The simulator mirrors the
+  device side of the guide's flow — the block sizes, the checksums, the acknowledgements, the reset
+  — so the protocol logic is exercised end to end, but the timings and the line-speed switch have
+  not been confirmed against a physical device.
 
 ## Framing defects, and how each was closed
 

@@ -15,9 +15,9 @@ using var port = SspSerialPort.Open("COM3");
 
 ## Status
 
-Under active development. The framing layer, the command codec, the procedural device API, the
-event-driven poll loop and the encrypted (eSSP) layer are in; firmware and dataset download is
-still to come. See [docs/protocol-support.md](docs/protocol-support.md) for
+Feature complete for banknote validators: the framing layer, the command codec, the procedural
+device API, the event-driven poll loop, the encrypted (eSSP) layer and firmware/dataset download
+are all in. See [docs/protocol-support.md](docs/protocol-support.md) for
 what is implemented and against which protocol version.
 
 ## Packages
