@@ -268,3 +268,34 @@ var reply = await validator.SendAsync(0x7C, new byte[] { 0x01 });
 
 and an event code with no name still arrives, with its raw value on `SspPollEvent.Code`. Registering
 its payload length is described in [protocol-support.md](protocol-support.md).
+
+
+## Updating firmware or a dataset
+
+Replacing a device's firmware or note dataset is deliberately its own operation, not a method on a
+device you might be polling — it overwrites the program the device runs, and ITL warn that getting
+it wrong can damage a unit. Parse the file first, then hand it and the connection to the downloader:
+
+```csharp
+var file = await SspFirmwareFile.LoadAsync("EUR02604_NV02004141498000_IF_01.bv1");
+
+using var port = SspSerialPort.Open("COM3");
+
+await SspFirmwareDownloader.DownloadAsync(
+    port.Stream,
+    file,
+    new SspDownloadOptions { BaudRateControl = port },
+    new Progress<SspDownloadProgress>(p => Console.WriteLine($"{p.Stage}: {p.Fraction:P0}")));
+```
+
+`SspFirmwareFile.Load` checks the file is an ITL file and is well formed before anything is sent, so
+a wrong or corrupt file fails in memory rather than part way through a device. If the file is simply
+not meant for this device, the device itself says so when it sees the header, and the download stops
+before overwriting anything.
+
+Passing `BaudRateControl = port` lets the download raise the line speed for the transfer, which a
+real serial device expects. Over a stream with no line speed — a network or in-memory stream — leave
+it out and the transfer runs at the connection's existing speed.
+
+The connection is the download's alone for its whole length: do not run a poll loop or send commands
+on the same device while it is flashing.

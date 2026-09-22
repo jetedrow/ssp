@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Ports;
+using CCS.SspNet.Interfaces;
 
 namespace CCS.SspNet.Serial
 {
@@ -13,7 +14,7 @@ namespace CCS.SspNet.Serial
     /// — network, I2C, SPI, an in-memory stream in a test — needs no equivalent, because a
     /// <see cref="System.IO.Stream"/> is all that is required.
     /// </remarks>
-    public sealed class SspSerialPort : IDisposable
+    public sealed class SspSerialPort : IDisposable, ISspBaudRateControl
     {
         private readonly SerialPort port;
         private bool disposed;
@@ -76,6 +77,24 @@ namespace CCS.SspNet.Serial
             if (disposed) throw new ObjectDisposedException(nameof(SspSerialPort));
             port.DiscardInBuffer();
             port.DiscardOutBuffer();
+        }
+
+        /// <summary>
+        /// Gets or sets the port's line speed.  A firmware download raises this for the transfer
+        /// and puts it back afterwards; ordinary use leaves it at what the port was opened with.
+        /// </summary>
+        public int BaudRate
+        {
+            get
+            {
+                if (disposed) throw new ObjectDisposedException(nameof(SspSerialPort));
+                return port.BaudRate;
+            }
+            set
+            {
+                if (disposed) throw new ObjectDisposedException(nameof(SspSerialPort));
+                port.BaudRate = value;
+            }
         }
 
         /// <summary>Closes the port.</summary>
