@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <!-- Library -->
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
     <PackageVersion Include="System.ComponentModel.Annotations" Version="5.0.0" />
     <PackageVersion Include="System.IO.Ports" Version="10.0.0" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />

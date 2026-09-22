@@ -119,6 +119,92 @@ Polling is not read-only: a validator treats a poll as permission to accept a no
 escrow. To decide first, call `HoldAsync` to keep the note in escrow for another interval, or
 `RejectBanknoteAsync` to give it back.
 
+## Letting events come to you
+
+The loop above works, but most hosts would rather register a callback and get on with something
+else. `SspDeviceHost` owns the poll loop and raises events as they arrive:
+
+```csharp
+using CCS.SspNet.Hosting;
+
+using var host = new SspDeviceHost(validator);
+
+host.EventReceived += (_, e) =>
+{
+    if (e.Event.Event == SspEvent.NoteCredit)
+    {
+        var channel = setup.Channels[e.Event.Data.Span[0] - 1];
+        Console.WriteLine($"credit {channel.Value} {channel.CountryCode}");
+    }
+};
+
+host.Fault += (_, e) => Console.WriteLine($"poll trouble: {e}");
+
+host.Start();
+// ... your application runs ...
+await host.StopAsync();
+```
+
+The loop does not die on its own. A failed poll, a handler that throws, or a reply that stopped at
+an event the library has no payload length for all raise `Fault` and polling continues.
+
+### Deciding about a note before it is accepted
+
+**A poll is not a passive read.** When the validator reports `Read` with a non-zero payload, a note
+has been validated and is sitting in escrow — and the *next poll* takes it. You have one poll
+interval to say otherwise, and doing nothing accepts the note.
+
+From a callback, say so on the event:
+
+```csharp
+host.EventReceived += (_, e) =>
+{
+    if (e.IsNoteInEscrow && !TillHasRoom())
+    {
+        e.Escrow = SspEscrowAction.Reject;   // or SspEscrowAction.Hold to decide next interval
+    }
+};
+```
+
+The host sends that before the next poll goes out.
+
+A callback cannot await anything, so if the decision needs a database or a person, use
+`await foreach` instead. It polls inside the enumeration, so the body of the loop runs in the gap
+between one poll and the next:
+
+```csharp
+await foreach (var e in host.ReadEventsAsync(cancellationToken))
+{
+    if (!e.IsNoteInEscrow) continue;
+
+    if (await CustomerStillWantsToPay(cancellationToken))
+    {
+        continue;                                        // the next poll accepts it
+    }
+
+    await e.Device.RejectBanknoteAsync(cancellationToken);
+}
+```
+
+Either way there is a hard limit: the device rejects an escrowed note by itself if no poll arrives
+for ten seconds, so a slow handler costs you the note. `SspDeviceHostOptions.PollInterval` refuses
+any value at or beyond that timeout for the same reason.
+
+### Not losing a credit if your host crashes
+
+`AcknowledgeEvents` makes the device repeat each event until the host acknowledges it, and the host
+acknowledges only once every handler has returned:
+
+```csharp
+using var host = new SspDeviceHost(validator, new SspDeviceHostOptions
+{
+    AcknowledgeEvents = true,
+});
+```
+
+A host that dies between reading a credit and recording it then sees that credit again on restart
+rather than losing it. The cost is one extra command per poll.
+
 ## Several devices on one bus
 
 SSP is multi-drop, so a validator and a hopper can share one port, each on its own address:
