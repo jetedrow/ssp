@@ -29,6 +29,15 @@ The eSSP layer: Diffie-Hellman key negotiation, AES-128, the packet counter, and
 envelope. It sits between framing and the codec so that encryption is invisible from above —
 a command looks identical whether or not the link is encrypted.
 
+The envelope is `SspEncryptedEnvelope`; the key and counter for one device's conversation are an
+`SspEncryptionSession`, held by `SspLink` per address, so a bus can carry an encrypted device and a
+plain one at once. Wrapping happens once per exchange rather than once per attempt: a
+retransmission has to be the bytes the device already half-heard, counter included, or it reads as
+a new packet out of sequence.
+
+What the protocol documents leave open about this layer, and how each is handled, is in
+`docs/protocol-support.md`.
+
 ## L2 — command codec
 
 Turns typed requests into payload bytes and payload bytes back into typed responses. This is the

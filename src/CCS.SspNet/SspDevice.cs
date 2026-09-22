@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CCS.SspNet.Communication;
 using CCS.SspNet.Exceptions;
 using CCS.SspNet.Protocol;
+using CCS.SspNet.Security;
 
 namespace CCS.SspNet
 {
@@ -196,6 +197,155 @@ namespace CCS.SspNet
                 SspCommand.HostProtocolVersion, new[] { version.Value }, cancellationToken).ConfigureAwait(false);
 
             ProtocolVersion = version;
+        }
+
+        // ---- encryption -------------------------------------------------------------------
+
+        /// <summary>
+        /// Gets whether commands to this device are being encrypted.
+        /// </summary>
+        public bool IsEncrypted => link.EncryptionFor(Address) != null;
+
+        /// <summary>
+        /// Agrees a session key with the device, after which every command it is sent is
+        /// encrypted.
+        /// </summary>
+        /// <param name="options">
+        /// The fixed half of the key and how the exchange picks its numbers, or
+        /// <see langword="null"/> for <see cref="SspDeviceOptions.Encryption"/>.
+        /// </param>
+        /// <param name="cancellationToken">Cancels the sequence.</param>
+        /// <returns>The key now in use.  Its negotiated half is different every session.</returns>
+        /// <remarks>
+        /// <para>
+        /// A device that has encryption fitted answers every command with
+        /// <see cref="SspResponse.KeyNotSet"/> until this has run, without doing what it was asked
+        /// — so on such a device this comes first, before even
+        /// <see cref="ConnectAsync"/>.  On a device without encryption the first command of the
+        /// exchange comes back unknown, and this throws rather than leaving the link half
+        /// configured.
+        /// </para>
+        /// <para>
+        /// The three numbers go out in clear, which is safe: watching them does not give away the
+        /// key.  What an observer cannot see is the random number each side keeps, and the key is
+        /// built from both.
+        /// </para>
+        /// <para>
+        /// This can be run again at any time.  Doing so resets the packet counter on both sides,
+        /// which is the way back from a conversation that has lost its place — and the three
+        /// commands go in clear whether or not a session was already running, because the device
+        /// changes key as it answers the last of them.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="SspResponseException">The device refused one of the three commands.</exception>
+        public async Task<SspEncryptionKey> NegotiateKeysAsync(
+            SspEncryptionOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            var settings = options ?? bus.Options.Encryption;
+
+            // The exchange itself goes in clear, even when a session is already running.  The
+            // device swaps to the new key the moment it answers the third command, so a reply sent
+            // under it could not be read by a host still holding the old one -- and renegotiating
+            // is exactly what a host does when the encrypted channel has lost its place, which is
+            // when it can least afford to need that channel.
+            link.DisableEncryption(Address);
+
+            var exchange = settings.Parameters is SspKeyExchangeParameters parameters
+                ? SspKeyExchange.Create(parameters)
+                : SspKeyExchange.Create(settings.PrimeBits);
+
+            // The order matters: a device answers Request Key Exchange with FAIL until it has both
+            // numbers.
+            await SendCheckedAsync(
+                SspCommand.SetGenerator, SspValues.WriteUInt64(exchange.Parameters.Generator), cancellationToken)
+                .ConfigureAwait(false);
+
+            await SendCheckedAsync(
+                SspCommand.SetModulus, SspValues.WriteUInt64(exchange.Parameters.Modulus), cancellationToken)
+                .ConfigureAwait(false);
+
+            var reply = await SendCheckedAsync(
+                SspCommand.RequestKeyExchange, SspValues.WriteUInt64(exchange.HostIntermediate), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (reply.Data.Length < 8)
+            {
+                throw new SspResponseException(
+                    $"The device at address {Address} accepted the key exchange but replied with " +
+                    $"{reply.Data.Length} bytes where its half of the key needs eight.");
+            }
+
+            var key = new SspEncryptionKey(
+                settings.FixedKey, exchange.CreateSharedSecret(SspValues.ReadUInt64(reply.Data.Span)));
+
+            link.EnableEncryption(Address, new SspEncryptionSession(key, settings.CountByteOrder));
+            return key;
+        }
+
+        /// <summary>
+        /// Stops encrypting commands to this device and forgets the session key.
+        /// </summary>
+        /// <remarks>
+        /// This is a decision made at this end only; the device keeps its key and will still accept
+        /// encrypted commands.  What it will not accept in clear are the commands that move money.
+        /// </remarks>
+        public void StopEncrypting() => link.DisableEncryption(Address);
+
+        /// <summary>
+        /// Changes the fixed half of the key the device expects — the half a machine's
+        /// manufacturer sets.
+        /// </summary>
+        /// <param name="fixedKey">The new fixed half.</param>
+        /// <param name="cancellationToken">Cancels the exchange.</param>
+        /// <remarks>
+        /// <para>
+        /// The device only accepts this encrypted, so the current key has to be known to set a new
+        /// one.  That is the point: it is what stops someone swapping a device into a machine it
+        /// was not sold for.
+        /// </para>
+        /// <para>
+        /// The session ends here.  Once the device has changed its half of the key, what the two
+        /// ends share is no longer the same, so this stops encrypting and leaves it to the caller
+        /// to run <see cref="NegotiateKeysAsync"/> again with the new fixed half — which also
+        /// puts both packet counters back to zero.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">The session is not encrypted.</exception>
+        public async Task SetFixedKeyAsync(ulong fixedKey, CancellationToken cancellationToken = default)
+        {
+            if (!IsEncrypted)
+            {
+                throw new InvalidOperationException(
+                    "A device only accepts a new fixed key encrypted, so negotiate a session key first.");
+            }
+
+            await SendCheckedAsync(
+                SspCommand.SetFixedEncryptionKey, SspValues.WriteUInt64(fixedKey), cancellationToken)
+                .ConfigureAwait(false);
+
+            StopEncrypting();
+        }
+
+        /// <summary>
+        /// Puts the fixed half of the key back to what the device left the factory with.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the exchange.</param>
+        /// <remarks>
+        /// As with <see cref="SetFixedKeyAsync"/>, the session ends here and has to be negotiated
+        /// again — with <see cref="SspEncryptionKey.DefaultFixedHalf"/> this time.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">The session is not encrypted.</exception>
+        public async Task ResetFixedKeyAsync(CancellationToken cancellationToken = default)
+        {
+            if (!IsEncrypted)
+            {
+                throw new InvalidOperationException(
+                    "A device only accepts this encrypted, so negotiate a session key first.");
+            }
+
+            await SendCheckedAsync(SspCommand.ResetFixedEncryptionKey, null, cancellationToken).ConfigureAwait(false);
+
+            StopEncrypting();
         }
 
         // ---- the everyday commands ---------------------------------------------------------
