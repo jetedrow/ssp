@@ -115,7 +115,9 @@ than silently corrected, so the corpus stays a record of what the manual actuall
 | Command codec: message building, reply parsing | Implemented |
 | Command codec: event table and version gate | Implemented |
 | Command codec: poll event decoding | Implemented |
-| Device facade, procedural | Not started |
+| Device facade, procedural | Implemented |
+| Device facade, setup request parsing | Implemented for banknote validators |
+| Device facade, protocol version negotiation | Implemented |
 | Device facade, event-driven | Not started |
 | Firmware and dataset download (`0x74`) | Not started |
 

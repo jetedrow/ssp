@@ -220,10 +220,10 @@ namespace CCS.SspNet
         GetRealTimeClockConfig = 0x62,
 
         [Display(Name = "Get Real Time Clock", Description = "Returns the device RTC date and time.")]
-        GetRealTimeClock = 0x62,
+        GetRealTimeClock = 0x63,
 
-        [Display(Name = "Set Real Time Clock Configuration", Description = "Sets the configuration of the device RTC.")]
-        SetRealTimeClockConfig = 0x64,
+        [Display(Name = "Set Real Time Clock", Description = "Sets the device RTC date and time.")]
+        SetRealTimeClock = 0x64,
 
         [Display(Name = "Get TEBS Barcode", Description = "This command is sent to the device to retrieve the barcode of the tamper evident cash bag.")]
         RequestTebsBarcode = 0x65,

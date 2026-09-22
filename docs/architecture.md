@@ -64,13 +64,27 @@ protocol manual that are internally consistent, in `ManualPollExampleTests`.
 
 The API consumers actually use, in two shapes over one connection:
 
-- **Procedural** — `await device.EnableAsync(ct)`, `await device.PollAsync(ct)`.
+- **Procedural** — `await device.EnableAsync(ct)`, `await device.PollAsync(ct)`. Built.
 - **Event-driven** — an `SspDeviceHost` owning a poll loop that raises events as they arrive, plus
-  an `IAsyncEnumerable` stream for `await foreach`.
+  an `IAsyncEnumerable` stream for `await foreach`. Not built yet.
 
-Both go through a single serializer on the connection. That is what lets a procedural call be made
-from inside an event handler without corrupting the sequence flag: the call is queued and
-interleaved between polls rather than racing the poll loop.
+`SspBus` owns the stream and the devices on it; `SspDevice` is one address on that bus. Both go
+through a single serializer on the connection. That is what lets a procedural call be made from
+inside an event handler without corrupting the sequence flag: the call is queued and interleaved
+between polls rather than racing the poll loop.
+
+Two things about `SspDevice` are worth stating, because they are where a host most easily goes
+wrong:
+
+- **`ConnectAsync` settles the protocol version before reading the setup, and does not enable the
+  device.** The version has to come first because it changes how the setup reply is laid out — a
+  validator's channel data moved into an expanded segment at version 6. Stopping short of enabling
+  is deliberate: a host gets to see what it has connected to before letting it take money.
+- **Negotiation walks down, never up past the host's own ceiling.** The protocol offers no way to
+  ask a device which versions it supports, only to ask it to change — OK if it can, FAIL if it
+  cannot. So `NegotiateProtocolVersionAsync` starts at `SspDeviceOptions.HighestProtocolVersion`
+  and steps down. A device left running ahead of its host sends events the host cannot measure,
+  which is exactly what the version mechanism exists to prevent.
 
 ## Transport
 
