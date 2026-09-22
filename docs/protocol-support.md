@@ -118,7 +118,8 @@ than silently corrected, so the corpus stays a record of what the manual actuall
 | Device facade, procedural | Implemented |
 | Device facade, setup request parsing | Implemented for banknote validators |
 | Device facade, protocol version negotiation | Implemented |
-| Device facade, event-driven | Not started |
+| Device facade, event-driven | Implemented |
+| Poll loop, escrow decisions and fault reporting | Implemented |
 | Firmware and dataset download (`0x74`) | Not started |
 
 ## Framing defects, and how each was closed

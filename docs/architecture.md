@@ -64,14 +64,33 @@ protocol manual that are internally consistent, in `ManualPollExampleTests`.
 
 The API consumers actually use, in two shapes over one connection:
 
-- **Procedural** — `await device.EnableAsync(ct)`, `await device.PollAsync(ct)`. Built.
+- **Procedural** — `await device.EnableAsync(ct)`, `await device.PollAsync(ct)`.
 - **Event-driven** — an `SspDeviceHost` owning a poll loop that raises events as they arrive, plus
-  an `IAsyncEnumerable` stream for `await foreach`. Not built yet.
+  an `IAsyncEnumerable` for `await foreach`.
 
 `SspBus` owns the stream and the devices on it; `SspDevice` is one address on that bus. Both go
 through a single serializer on the connection. That is what lets a procedural call be made from
 inside an event handler without corrupting the sequence flag: the call is queued and interleaved
 between polls rather than racing the poll loop.
+
+**A poll is not a passive read.** When a validator reports `Read` with a non-zero payload, a note
+has been validated and is held in escrow — and the *next poll* takes it. A host has one poll
+interval to say otherwise, and doing nothing accepts. The device also rejects an escrowed note by
+itself if no poll arrives for ten seconds, so a host cannot hold a note by stalling.
+
+That single fact shapes the whole event-driven surface:
+
+- `SspDeviceEventArgs.Escrow` is how a synchronous handler says `Hold` or `Reject`, and the host
+  sends it before the next poll goes out.
+- `ReadEventsAsync` polls *inside* the enumeration rather than on a background thread, so the body
+  of an `await foreach` runs in the gap between polls. That is what lets a decision be awaited —
+  a database lookup, a user prompt — and still beat the poll that would have taken the note.
+- `SspDeviceHostOptions.PollInterval` refuses any value at or beyond the ten second timeout, since
+  such a loop would guarantee that every held note is rejected.
+
+The loop never dies on its own. A failed poll, a handler that throws, or a reply that stops at an
+unknown event all raise `Fault` and polling continues; a cable that comes loose should be visible
+and survivable, not terminal.
 
 Two things about `SspDevice` are worth stating, because they are where a host most easily goes
 wrong:

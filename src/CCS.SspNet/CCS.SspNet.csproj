@@ -7,8 +7,11 @@
     <Description>.NET library for integrating with devices using SSP (Smiley Secure Protocol). Transport-agnostic: drive a device over any Stream, whether serial, network or in-memory.</Description>
   </PropertyGroup>
 
-  <!-- net10.0 carries both of these in the shared framework; netstandard2.0 needs the packages. -->
+  <!-- net10.0 carries all of these in the shared framework; netstandard2.0 needs the packages.
+       Microsoft.Bcl.AsyncInterfaces is what gives netstandard2.0 IAsyncEnumerable, so that
+       `await foreach` over device events works on .NET Framework too. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
     <PackageReference Include="System.ComponentModel.Annotations" />
     <PackageReference Include="System.Memory" />
   </ItemGroup>
