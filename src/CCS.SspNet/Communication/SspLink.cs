@@ -1,4 +1,5 @@
 using CCS.SspNet.Exceptions;
+using CCS.SspNet.Security;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,6 +34,7 @@ namespace CCS.SspNet.Communication
         private readonly SspLinkOptions options;
         private readonly SemaphoreSlim gate = new SemaphoreSlim(1, 1);
         private readonly Dictionary<byte, bool> sequenceFlags = new Dictionary<byte, bool>();
+        private readonly Dictionary<byte, SspEncryptionSession> encryption = new Dictionary<byte, SspEncryptionSession>();
         private bool disposed;
 
         public SspLink(Stream stream, SspLinkOptions? options = null)
@@ -53,6 +55,10 @@ namespace CCS.SspNet.Communication
         /// <exception cref="SspCommunicationException">
         /// Every attempt failed.  The inner exception carries the last one.
         /// </exception>
+        /// <exception cref="SspEncryptionException">
+        /// The device's reply would not decrypt.  Not retried: the transport's own CRC has already
+        /// passed, so this means the two ends disagree about the key or the packet counter.
+        /// </exception>
         public async Task<SspRawPacket> ExchangeAsync(byte address, byte[] data, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -63,7 +69,11 @@ namespace CCS.SspNet.Communication
             {
                 // Advanced once, for the exchange as a whole. Every retry below reuses it.
                 var sequenceFlag = AdvanceSequenceFlag(address);
-                var request = new SspRawPacket(address, data);
+
+                // Encrypted once, too. A retransmission has to be the bytes the device already
+                // half-heard, counter included, or it reads as a new packet out of sequence.
+                encryption.TryGetValue(address, out var session);
+                var request = new SspRawPacket(address, session == null ? data : session.Encrypt(data));
 
                 Exception? lastFailure = null;
 
@@ -71,7 +81,17 @@ namespace CCS.SspNet.Communication
                 {
                     try
                     {
-                        return await AttemptAsync(request, address, sequenceFlag, cancellationToken).ConfigureAwait(false);
+                        var response = await AttemptAsync(request, address, sequenceFlag, cancellationToken).ConfigureAwait(false);
+
+                        // A device answers in the form it was asked, so an encrypted command draws
+                        // an encrypted reply -- but a device that has not been keyed yet answers
+                        // KEY_NOT_SET in clear, and that reply has to get through to be read.
+                        if (session != null && SspEncryptionSession.IsEncrypted(response.Data))
+                        {
+                            response.Data = session.Decrypt(response.Data);
+                        }
+
+                        return response;
                     }
                     catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                     {
@@ -138,6 +158,34 @@ namespace CCS.SspNet.Communication
             sequenceFlags[address] = false;
         }
 
+        /// <summary>
+        /// Starts encrypting everything sent to a device, replacing any session already running
+        /// for it.
+        /// </summary>
+        public void EnableEncryption(byte address, SspEncryptionSession session)
+        {
+            ThrowIfDisposed();
+            if (session == null) throw new ArgumentNullException(nameof(session));
+
+            if (encryption.TryGetValue(address, out var previous)) previous.Dispose();
+            encryption[address] = session;
+        }
+
+        /// <summary>Stops encrypting, and forgets the key.</summary>
+        public void DisableEncryption(byte address)
+        {
+            ThrowIfDisposed();
+
+            if (!encryption.TryGetValue(address, out var session)) return;
+
+            session.Dispose();
+            encryption.Remove(address);
+        }
+
+        /// <summary>Gets the encrypted session running for a device, if there is one.</summary>
+        public SspEncryptionSession? EncryptionFor(byte address) =>
+            encryption.TryGetValue(address, out var session) ? session : null;
+
         private bool AdvanceSequenceFlag(byte address)
         {
             var next = !(sequenceFlags.TryGetValue(address, out var current) && current);
@@ -157,6 +205,9 @@ namespace CCS.SspNet.Communication
         {
             if (disposed) return;
             disposed = true;
+
+            foreach (var session in encryption.Values) session.Dispose();
+            encryption.Clear();
 
             reader.Dispose();
             writer.Dispose();

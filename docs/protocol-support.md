@@ -99,6 +99,73 @@ only by decoding them:
 The 63 that are correct are the corpus in `ManualPollExampleTests`. The nine are excluded rather
 than silently corrected, so the corpus stays a record of what the manual actually says.
 
+## Encryption (eSSP)
+
+Encryption is not optional on a device that pays money out: a payout command is only accepted
+encrypted, and a device with encryption fitted answers every command `KEY_NOT_SET` (`0xFA`) — doing
+none of them — until a key has been agreed. So the encrypted layer is where the payout half of the
+protocol starts.
+
+```csharp
+await validator.NegotiateKeysAsync();
+```
+
+After that every command to that device is encrypted and every reply decrypted, with nothing else
+in the API changing shape. The three commands of the exchange itself go in clear, which is safe:
+what an observer sees does not give away the key.
+
+The block inside a packet's data field is `STEX | eLENGTH | eCOUNT | eDATA | ePACKING | eCRCL |
+eCRCH`, everything after the `STEX` encrypted as AES-128 blocks. The padding is random rather than
+zeroes, deliberately: a poll is one byte and goes out several times a second, so constant padding
+would make every poll encrypt to the same ciphertext.
+
+### What the documents leave open
+
+Three details of this layer are underdetermined, and each is handled in the open rather than by a
+quiet guess.
+
+**The counter's byte order is not settled.** Every other multi-byte integer in SSP is little
+endian, including the three numbers of the key exchange immediately before it — but the one
+encrypted packet the implementation guide prints in full shows its counter as `00 00 00 A7`, which
+is only a plausible counter read the other way round, and that packet cannot be decrypted to check
+because its key is not published. The default is little endian and
+`SspEncryptionOptions.CountByteOrder` changes it. Getting it wrong is loud rather than subtle: the
+device finds a counter it did not expect, discards the packet, and every encrypted command times
+out from the first one. **This is the one part of the library that a real device or ITL's C source
+still needs to confirm.**
+
+**The counter rule is described twice, differently.** In the field table it increments on every
+packet encrypted *and* every packet decrypted; three paragraphs later it increments only on
+transmission, with the received value compared against the internal one. Under the first reading a
+reply carries one more than the command it answers; under the second it repeats it. Both are
+accepted, and the session then follows whichever the device used — so neither reading breaks a real
+conversation, and the ambiguity costs nothing.
+
+**The CRC check as described cannot work.** The manual says to run the CRC over the whole decrypted
+block, its CRC bytes included, and expect zero. That property holds for this CRC only when the
+remainder is appended high byte first, and eSSP sends `eCRCL` before `eCRCH` like the rest of the
+protocol. The library recalculates and compares instead, which is the same test done the way the
+bytes actually arrive.
+
+### The generator must be larger than the modulus
+
+Unusually for Diffie-Hellman, the implementation guide requires the generator to be the larger of
+the two primes — one sentence, easy to miss, and a device will not agree a key without it.
+`SspKeyExchangeParameters` enforces it, generating and testing both primes itself.
+
+Both numbers are sent as 64-bit integers, but a device raises one to a random power modulo the
+other in its own 64-bit arithmetic, so the default width is 62 bits to leave that out of overflow.
+`SspEncryptionOptions.PrimeBits` lowers it for a device that refuses larger primes, and
+`Parameters` fixes the pair outright.
+
+### The fixed half of the key
+
+The lower 64 bits are set by whoever builds the machine and are the same every session; a device
+ships with `01 23 45 67 01 23 45 67`. `SetFixedKeyAsync` changes it and the device only accepts
+that encrypted, so the current key has to be known to set a new one. Both that and
+`ResetFixedKeyAsync` end the session — the two ends no longer share a key — and leave the caller to
+negotiate again with the new half.
+
 ## Implementation status
 
 | Layer | Status |
@@ -111,7 +178,7 @@ than silently corrected, so the corpus stays a record of what the manual actuall
 | Framing: sequence flag ownership | Implemented |
 | Framing: timeouts, cancellation and retry | Implemented |
 | Test transport: in-memory stream and device simulator | Implemented |
-| Encryption (eSSP) | Not started |
+| Encryption (eSSP): key negotiation, AES-128, packet counter | Implemented |
 | Command codec: message building, reply parsing | Implemented |
 | Command codec: event table and version gate | Implemented |
 | Command codec: poll event decoding | Implemented |

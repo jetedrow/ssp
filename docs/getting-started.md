@@ -205,6 +205,45 @@ using var host = new SspDeviceHost(validator, new SspDeviceHostOptions
 A host that dies between reading a credit and recording it then sees that credit again on restart
 rather than losing it. The cost is one extra command per poll.
 
+## Encrypted devices
+
+A device that pays money out will not do it in clear. It answers every command `KEY_NOT_SET` until
+a key has been agreed, so on such a device this comes before anything else, `ConnectAsync`
+included:
+
+```csharp
+var validator = SspDevice.Attach(port.Stream);
+
+await validator.NegotiateKeysAsync();
+await validator.ConnectAsync();
+```
+
+Nothing else changes: commands and replies look the same whether or not the link is encrypted.
+
+The manufacturer's half of the key is the one thing you may have to supply. A device ships
+expecting `01 23 45 67 01 23 45 67`, and a machine builder who has changed it has to say so:
+
+```csharp
+await validator.NegotiateKeysAsync(new SspEncryptionOptions
+{
+    FixedKey = 0x0123456789ABCDEF,
+});
+```
+
+If every encrypted command times out from the very first one, read the byte-order note in
+[protocol-support.md](protocol-support.md) before looking anywhere else — it is the one detail of
+this layer the protocol documents do not settle, and it is a one-line change:
+
+```csharp
+await validator.NegotiateKeysAsync(new SspEncryptionOptions
+{
+    CountByteOrder = SspCountByteOrder.BigEndian,
+});
+```
+
+Running `NegotiateKeysAsync` again at any time starts a fresh key and puts both packet counters
+back to zero, which is the way back from a conversation that has lost its place.
+
 ## Several devices on one bus
 
 SSP is multi-drop, so a validator and a hopper can share one port, each on its own address:

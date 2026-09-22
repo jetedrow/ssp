@@ -1,5 +1,6 @@
 using System;
 using CCS.SspNet.Protocol;
+using CCS.SspNet.Security;
 
 namespace CCS.SspNet
 {
@@ -46,5 +47,15 @@ namespace CCS.SspNet
         /// above what <see cref="EventTable"/> covers means poll replies may stop part-way.
         /// </remarks>
         public SspProtocolVersion HighestProtocolVersion { get; set; } = SspProtocolVersion.Highest;
+
+        /// <summary>
+        /// Gets or sets what <see cref="SspDevice.NegotiateKeysAsync"/> uses when it is not given
+        /// settings of its own.
+        /// </summary>
+        /// <remarks>
+        /// Encryption is not switched on by having these: nothing is encrypted until a key has
+        /// been negotiated.
+        /// </remarks>
+        public SspEncryptionOptions Encryption { get; set; } = new SspEncryptionOptions();
     }
 }

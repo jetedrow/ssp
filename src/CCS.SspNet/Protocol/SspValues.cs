@@ -54,6 +54,29 @@ namespace CCS.SspNet.Protocol
         }
 
         /// <summary>
+        /// Reads an eight-byte little-endian number.  The three numbers of the encryption key
+        /// exchange are sent this way round.
+        /// </summary>
+        /// <param name="data">The payload, positioned at the number.</param>
+        /// <exception cref="ArgumentException">There are fewer than eight bytes left.</exception>
+        public static ulong ReadUInt64(ReadOnlySpan<byte> data)
+        {
+            if (data.Length < 8) throw new ArgumentException("An eight-byte number is eight bytes.", nameof(data));
+
+            ulong value = 0;
+            for (var i = 0; i < 8; i++) value |= (ulong)data[i] << (i * 8);
+            return value;
+        }
+
+        /// <summary>Writes an eight-byte little-endian number.</summary>
+        public static byte[] WriteUInt64(ulong value)
+        {
+            var bytes = new byte[8];
+            for (var i = 0; i < 8; i++) bytes[i] = (byte)(value >> (i * 8));
+            return bytes;
+        }
+
+        /// <summary>
         /// Reads a three-letter ASCII country code, as in <c>EUR</c> or <c>GBP</c>.
         /// </summary>
         /// <param name="data">The payload, positioned at the code.</param>
