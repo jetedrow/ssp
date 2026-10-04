@@ -39,8 +39,9 @@ Both packages always ship with the same version, and `SSP.net.Serial` depends on
 nuget.org validates and indexes a new package before it appears in search, which usually takes a
 few minutes.
 
-Re-running a failed run is safe: the push uses `--skip-duplicate`, and a re-run keeps its run
-number, so it publishes the same version.
+The push does not use `--skip-duplicate`, so a 409 Conflict from nuget.org fails the run instead of
+passing silently. A re-run keeps its run number and so its version; if the first attempt already
+published, start a new run instead.
 
 ## One-time setup
 

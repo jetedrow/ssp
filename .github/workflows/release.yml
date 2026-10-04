@@ -128,8 +128,9 @@ jobs:
         with:
           user: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
 
-      # Pushing the .nupkg also pushes the matching .snupkg symbols package. --skip-duplicate makes
-      # a re-run of a half-finished release safe.
+      # Pushing the .nupkg also pushes the matching .snupkg symbols package. There is deliberately
+      # no --skip-duplicate: it turns nuget.org's 409 Conflict into a green step, so a push that
+      # published nothing looked like a success.
       - name: Push to nuget.org
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
@@ -137,7 +138,6 @@ jobs:
           dotnet nuget push "packages/*.nupkg"
           --api-key "$NUGET_API_KEY"
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
 
       - name: Tag and create the GitHub pre-release
         env:
