@@ -55,7 +55,7 @@ key that lasts about an hour. There is no long-lived API key to create, store or
    - **Policy name:** anything, for example `ssp-github-release`.
    - **Package owner:** your account (or the organisation that will own the packages).
    - **Repository owner:** `jetedrow`
-   - **Repository:** `ssp`
+   - **Repository:** `SmileySecure.Net`
    - **Workflow file:** `release.yml`
    - **Environment:** leave blank. The workflow doesn't use a GitHub environment.
 2. A new policy shows as *partially active* until the first successful release uses it; that is
