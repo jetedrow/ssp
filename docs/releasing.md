@@ -6,8 +6,8 @@ someone has to start it from the Actions tab.
 
 ## Versioning
 
-Both packages always ship with the same version, and `SSP.net.Serial` depends on exactly the
-`SSP.net` version it was built with.
+Both packages always ship with the same version, and `SmileySecure.Net.Serial` depends on exactly the
+`SmileySecure.Net` version it was built with.
 
 | Where it was built | Version | Example |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Both packages always ship with the same version, and `SSP.net.Serial` depends on
 - Packages built outside the workflow carry `-dev`, so a locally built package can never be
   confused with a published one.
 - `1.0.0-preview.N` is a SemVer pre-release. NuGet hides it unless the consumer asks for
-  pre-releases (`dotnet add package SSP.net --prerelease`), and it sorts below the eventual `1.0.0`.
+  pre-releases (`dotnet add package SmileySecure.Net --prerelease`), and it sorts below the eventual `1.0.0`.
 
 ## Running a release
 

@@ -130,7 +130,7 @@ The library talks to a `Stream`. That is the whole transport contract.
 
 | Transport | How |
 | --- | --- |
-| Serial | `SspSerialPort.Open("COM3")` in the `SSP.net.Serial` package |
+| Serial | `SspSerialPort.Open("COM3")` in the `SmileySecure.Net.Serial` package |
 | Network | `NetworkStream`, directly |
 | I2C / SPI / anything else | Implement a `Stream` |
 | Tests | An in-memory duplex stream — no hardware, no pipes, no timing races |

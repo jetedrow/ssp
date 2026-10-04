@@ -24,14 +24,17 @@ what is implemented and against which protocol version.
 
 | Package | What it is |
 | --- | --- |
-| `SSP.net` | The library. No transport dependencies. |
-| `SSP.net.Serial` | Serial port transport, for devices on a COM port. |
+| `SmileySecure.Net` | The library. No transport dependencies. |
+| `SmileySecure.Net.Serial` | Serial port transport, for devices on a COM port. |
+
+The project is SSP.net, but the `SSP.` package ID prefix is reserved on nuget.org, so the packages
+are published as `SmileySecure.Net`. The code namespace is still `CCS.SspNet`.
 
 Both target `netstandard2.0` and `net10.0`. Pre-releases are on nuget.org:
 
 ```bash
-dotnet add package SSP.net --prerelease
-dotnet add package SSP.net.Serial --prerelease
+dotnet add package SmileySecure.Net --prerelease
+dotnet add package SmileySecure.Net.Serial --prerelease
 ```
 
 ## Documentation

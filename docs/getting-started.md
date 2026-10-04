@@ -4,8 +4,8 @@
 
 | Package | What it is |
 | --- | --- |
-| `SSP.net` | The library. Talks to a `Stream`; no transport dependencies. |
-| `SSP.net.Serial` | Serial transport. Only needed if the device is on a COM port. |
+| `SmileySecure.Net` | The library. Talks to a `Stream`; no transport dependencies. |
+| `SmileySecure.Net.Serial` | Serial transport. Only needed if the device is on a COM port. |
 
 Both target `netstandard2.0` and `net10.0`, so they work on .NET Framework 4.6.2 and later as well
 as on current .NET.

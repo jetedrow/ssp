@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageId>SSP.net</PackageId>
+    <PackageId>SmileySecure.Net</PackageId>
     <Description>.NET library for integrating with devices using SSP (Smiley Secure Protocol). Transport-agnostic: drive a device over any Stream, whether serial, network or in-memory.</Description>
   </PropertyGroup>
 

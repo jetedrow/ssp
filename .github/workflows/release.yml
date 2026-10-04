@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes SSP.net and SSP.net.Serial to nuget.org. Run by hand only: Actions > Release > Run
+# Publishes SmileySecure.Net and SmileySecure.Net.Serial to nuget.org. Run by hand only: Actions > Release > Run
 # workflow. Each run publishes 1.0.0-preview.<N>, where N is this workflow's run number, then tags
 # the commit and creates a GitHub pre-release. See docs/releasing.md.
 
