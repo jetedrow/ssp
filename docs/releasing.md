@@ -56,7 +56,7 @@ key that lasts about an hour. There is no long-lived API key to create, store or
    - **Repository owner:** `jetedrow`
    - **Repository:** `ssp`
    - **Workflow file:** `release.yml`
-   - **Environment:** `nuget` (optional but recommended; it must then match the GitHub environment below).
+   - **Environment:** leave blank. The workflow doesn't use a GitHub environment.
 2. A new policy shows as *partially active* until the first successful release uses it; that is
    expected.
 
@@ -64,11 +64,7 @@ The policy is tied to the workflow file name, so renaming `release.yml` means ed
 
 ### GitHub
 
-1. **Settings > Environments > New environment**, named `nuget`.
-   - Optional: add yourself under **Required reviewers**, so each release waits for a click
-     before anything is pushed to nuget.org.
-   - Optional: under **Deployment branches and tags**, restrict it to `main`.
-2. **Settings > Secrets and variables > Actions > Variables > New repository variable**:
+1. **Settings > Secrets and variables > Actions > Variables tab > New repository variable** (a repository variable, not a secret and not an environment variable):
    - **Name:** `NUGET_USER`
    - **Value:** your nuget.org *username* (the profile name, not your email address).
 
