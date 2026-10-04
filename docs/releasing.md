@@ -64,12 +64,14 @@ The policy is tied to the workflow file name, so renaming `release.yml` means ed
 
 ### GitHub
 
-1. **Settings > Secrets and variables > Actions > Variables tab > New repository variable** (a repository variable, not a secret and not an environment variable):
+1. **Settings > Secrets and variables > Actions**, add a repository variable (Variables tab) or a
+   repository secret (Secrets tab); the workflow reads either:
    - **Name:** `NUGET_USER`
    - **Value:** your nuget.org *username* (the profile name, not your email address).
 
-It is a variable rather than a secret because it is not sensitive. There are no secrets to add: the
-tag and the GitHub release use the workflow's own token, and the nuget.org key is minted per run.
+A variable is the natural fit because the username is not sensitive, but a secret works too. There
+are no other secrets to add: the tag and the GitHub release use the workflow's own token, and the
+nuget.org key is minted per run.
 
 ## Going stable
 

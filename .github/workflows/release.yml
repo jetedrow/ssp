@@ -115,10 +115,10 @@ jobs:
       # matches this repository and this workflow file. No long-lived key is stored anywhere.
       - name: Check the nuget.org username is set
         env:
-          NUGET_USER: ${{ vars.NUGET_USER }}
+          NUGET_USER: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
         run: |
           if [ -z "$NUGET_USER" ]; then
-            echo "::error::The NUGET_USER repository variable is empty or missing. Add it under Settings > Secrets and variables > Actions > Variables. See docs/releasing.md."
+            echo "::error::The NUGET_USER repository variable (or secret) is empty or missing. Add it under Settings > Secrets and variables > Actions. See docs/releasing.md."
             exit 1
           fi
 
@@ -126,7 +126,7 @@ jobs:
         id: login
         uses: NuGet/login@v1
         with:
-          user: ${{ vars.NUGET_USER }}
+          user: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
 
       # Pushing the .nupkg also pushes the matching .snupkg symbols package. --skip-duplicate makes
       # a re-run of a half-finished release safe.
