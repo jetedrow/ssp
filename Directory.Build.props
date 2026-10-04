@@ -37,9 +37,9 @@
     <Authors>Jeff Tedrow</Authors>
     <Product>SmileySecure.Net</Product>
     <Copyright>©2026 All Rights Reserved</Copyright>
-    <RepositoryUrl>https://github.com/jetedrow/ssp</RepositoryUrl>
+    <RepositoryUrl>https://github.com/jetedrow/SmileySecure.Net</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/jetedrow/ssp</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/jetedrow/SmileySecure.Net</PackageProjectUrl>
     <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>ssp;essp;smiley-secure-protocol;innovative-technology;banknote-validator;serial</PackageTags>

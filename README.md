@@ -27,8 +27,8 @@ what is implemented and against which protocol version.
 | `SmileySecure.Net` | The library. No transport dependencies. |
 | `SmileySecure.Net.Serial` | Serial port transport, for devices on a COM port. |
 
-The library was started as SSP.net and the repository is called ssp, but the `SSP.` package ID prefix is reserved on nuget.org, so the
-packages, assemblies and namespaces are all named `SmileySecure.Net`.
+The library was started as SSP.net, but the `SSP.` package ID prefix is reserved on nuget.org, so the
+repository, packages, assemblies and namespaces are all named `SmileySecure.Net`.
 
 Both target `netstandard2.0` and `net10.0`. Pre-releases are on nuget.org:
 
