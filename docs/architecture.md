@@ -1,6 +1,6 @@
 # Architecture
 
-SSP.net is built in four layers. Each one depends only on the layer below it, and each is testable
+SmileySecure.Net is built in four layers. Each one depends only on the layer below it, and each is testable
 on its own without a device attached.
 
 ```
@@ -130,7 +130,7 @@ The library talks to a `Stream`. That is the whole transport contract.
 
 | Transport | How |
 | --- | --- |
-| Serial | `SspSerialPort.Open("COM3")` in the `SSP.net.Serial` package |
+| Serial | `SspSerialPort.Open("COM3")` in the `SmileySecure.Net.Serial` package |
 | Network | `NetworkStream`, directly |
 | I2C / SPI / anything else | Implement a `Stream` |
 | Tests | An in-memory duplex stream — no hardware, no pipes, no timing races |

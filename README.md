@@ -1,4 +1,4 @@
-# SSP.net
+# SmileySecure.Net
 
 A .NET library for talking to devices that speak SSP — Innovative Technology's Smiley Secure
 Protocol — such as banknote validators, coin hoppers and payout units.
@@ -7,7 +7,7 @@ The library talks to a `System.IO.Stream` and nothing else, so the same code dri
 serial port, over the network, over I2C or SPI, or over an in-memory stream in a test.
 
 ```csharp
-using CCS.SspNet.Serial;
+using SmileySecure.Net.Serial;
 
 using var port = SspSerialPort.Open("COM3");
 // port.Stream is an ordinary Stream, opened with SSP's wire settings.
@@ -24,14 +24,17 @@ what is implemented and against which protocol version.
 
 | Package | What it is |
 | --- | --- |
-| `SSP.net` | The library. No transport dependencies. |
-| `SSP.net.Serial` | Serial port transport, for devices on a COM port. |
+| `SmileySecure.Net` | The library. No transport dependencies. |
+| `SmileySecure.Net.Serial` | Serial port transport, for devices on a COM port. |
+
+The library was started as SSP.net and the repository is called ssp, but the `SSP.` package ID prefix is reserved on nuget.org, so the
+packages, assemblies and namespaces are all named `SmileySecure.Net`.
 
 Both target `netstandard2.0` and `net10.0`. Pre-releases are on nuget.org:
 
 ```bash
-dotnet add package SSP.net --prerelease
-dotnet add package SSP.net.Serial --prerelease
+dotnet add package SmileySecure.Net --prerelease
+dotnet add package SmileySecure.Net.Serial --prerelease
 ```
 
 ## Documentation
@@ -46,8 +49,8 @@ dotnet add package SSP.net.Serial --prerelease
 Requires the .NET 10 SDK.
 
 ```bash
-dotnet build src/CCS.SspNet.sln
-dotnet test src/CCS.SspNet.sln
+dotnet build src/SmileySecure.Net.sln
+dotnet test src/SmileySecure.Net.sln
 ```
 
 ## Licence

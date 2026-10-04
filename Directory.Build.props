@@ -35,7 +35,7 @@
   <!-- Shared package metadata. Individual projects override PackageId/Description. -->
   <PropertyGroup>
     <Authors>Jeff Tedrow</Authors>
-    <Product>SSP.net</Product>
+    <Product>SmileySecure.Net</Product>
     <Copyright>©2026 All Rights Reserved</Copyright>
     <RepositoryUrl>https://github.com/jetedrow/ssp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
