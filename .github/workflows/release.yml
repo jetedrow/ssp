@@ -92,11 +92,6 @@ jobs:
     needs: pack
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
-    # Required reviewers can be added to this environment so that a run waits for approval before
-    # anything is pushed.
-    environment:
-      name: nuget
-      url: https://www.nuget.org/packages/SSP.net/${{ needs.pack.outputs.version }}
     permissions:
       contents: write   # to create the tag and the GitHub release
       id-token: write   # for the trusted publishing token exchange
@@ -118,11 +113,20 @@ jobs:
       # Trusted publishing: GitHub issues this run an OIDC token, and NuGet/login swaps it for a
       # short-lived API key (about an hour), provided a trusted publishing policy on nuget.org
       # matches this repository and this workflow file. No long-lived key is stored anywhere.
+      - name: Check the nuget.org username is set
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
+        run: |
+          if [ -z "$NUGET_USER" ]; then
+            echo "::error::The NUGET_USER repository variable (or secret) is empty or missing. Add it under Settings > Secrets and variables > Actions. See docs/releasing.md."
+            exit 1
+          fi
+
       - name: Log in to nuget.org (trusted publishing)
         id: login
         uses: NuGet/login@v1
         with:
-          user: ${{ vars.NUGET_USER }}
+          user: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
 
       # Pushing the .nupkg also pushes the matching .snupkg symbols package. --skip-duplicate makes
       # a re-run of a half-finished release safe.
