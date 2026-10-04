@@ -92,13 +92,14 @@ jobs:
     needs: pack
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
-    # The environment is where NUGET_API_KEY can live, and where required reviewers can be added
-    # so that a run waits for approval before anything is pushed.
+    # Required reviewers can be added to this environment so that a run waits for approval before
+    # anything is pushed.
     environment:
       name: nuget
       url: https://www.nuget.org/packages/SSP.net/${{ needs.pack.outputs.version }}
     permissions:
       contents: write   # to create the tag and the GitHub release
+      id-token: write   # for the trusted publishing token exchange
 
     steps:
       - uses: actions/checkout@v4
@@ -114,20 +115,20 @@ jobs:
           name: packages
           path: packages
 
-      - name: Check the API key is set
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::The NUGET_API_KEY secret is missing. See docs/releasing.md."
-            exit 1
-          fi
+      # Trusted publishing: GitHub issues this run an OIDC token, and NuGet/login swaps it for a
+      # short-lived API key (about an hour), provided a trusted publishing policy on nuget.org
+      # matches this repository and this workflow file. No long-lived key is stored anywhere.
+      - name: Log in to nuget.org (trusted publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
 
       # Pushing the .nupkg also pushes the matching .snupkg symbols package. --skip-duplicate makes
       # a re-run of a half-finished release safe.
       - name: Push to nuget.org
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: >
           dotnet nuget push "packages/*.nupkg"
           --api-key "$NUGET_API_KEY"

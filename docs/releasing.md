@@ -44,14 +44,23 @@ number, so it publishes the same version.
 
 ## One-time setup
 
-### nuget.org API key
+Publishing uses nuget.org [trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+GitHub proves to nuget.org which repository and workflow is running, and nuget.org hands back an API
+key that lasts about an hour. There is no long-lived API key to create, store or rotate.
 
-1. Sign in at nuget.org, open **API Keys** and create a key:
-   - **Key name:** anything, for example `ssp-github-release`.
-   - **Scopes:** *Push* > *Push new packages and package versions*.
-   - **Glob pattern:** `SSP.net*` (covers both packages).
-   - **Expiration:** up to 365 days. Note the date; the workflow fails with a 403 once it expires.
-2. Copy the key. nuget.org shows it only once.
+### nuget.org
+
+1. Sign in at nuget.org, open your user menu > **Trusted Publishing** and create a policy:
+   - **Policy name:** anything, for example `ssp-github-release`.
+   - **Package owner:** your account (or the organisation that will own the packages).
+   - **Repository owner:** `jetedrow`
+   - **Repository:** `ssp`
+   - **Workflow file:** `release.yml`
+   - **Environment:** `nuget` (optional but recommended; it must then match the GitHub environment below).
+2. A new policy shows as *partially active* until the first successful release uses it; that is
+   expected.
+
+The policy is tied to the workflow file name, so renaming `release.yml` means editing the policy.
 
 ### GitHub
 
@@ -59,13 +68,12 @@ number, so it publishes the same version.
    - Optional: add yourself under **Required reviewers**, so each release waits for a click
      before anything is pushed to nuget.org.
    - Optional: under **Deployment branches and tags**, restrict it to `main`.
-2. In that environment, **Add environment secret**:
-   - **Name:** `NUGET_API_KEY`
-   - **Value:** the key from nuget.org.
+2. **Settings > Secrets and variables > Actions > Variables > New repository variable**:
+   - **Name:** `NUGET_USER`
+   - **Value:** your nuget.org *username* (the profile name, not your email address).
 
-A repository secret with the same name (**Settings > Secrets and variables > Actions**) also works
-if you would rather skip the environment. Nothing else is needed: the tag and the GitHub release
-are created with the workflow's own token.
+It is a variable rather than a secret because it is not sensitive. There are no secrets to add: the
+tag and the GitHub release use the workflow's own token, and the nuget.org key is minted per run.
 
 ## Going stable
 
