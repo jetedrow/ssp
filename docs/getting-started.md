@@ -15,14 +15,14 @@ as on current .NET.
 Requires the .NET 10 SDK, as pinned in `global.json`.
 
 ```bash
-dotnet build src/CCS.SspNet.sln
-dotnet test src/CCS.SspNet.sln
+dotnet build src/SmileySecure.Net.sln
+dotnet test src/SmileySecure.Net.sln
 ```
 
 To run the fast tier only, as pull request builds do:
 
 ```bash
-dotnet test src/CCS.SspNet.sln --filter "Category!=Slow&Category!=Hardware"
+dotnet test src/SmileySecure.Net.sln --filter "Category!=Slow&Category!=Hardware"
 ```
 
 Test tiers are declared in `TestCategories`. An untagged test counts as fast and runs on every
@@ -36,7 +36,7 @@ The library takes a `Stream`, whatever the device is plugged into.
 Over a serial port:
 
 ```csharp
-using CCS.SspNet.Serial;
+using SmileySecure.Net.Serial;
 
 using var port = SspSerialPort.Open("COM3");
 // port.Stream is an ordinary Stream carrying SSP's wire settings:
@@ -57,9 +57,9 @@ stream and need no hardware at all.
 ## Talking to a validator
 
 ```csharp
-using CCS.SspNet;
-using CCS.SspNet.Protocol;
-using CCS.SspNet.Serial;
+using SmileySecure.Net;
+using SmileySecure.Net.Protocol;
+using SmileySecure.Net.Serial;
 
 using var port = SspSerialPort.Open("COM3");
 var validator = SspDevice.Attach(port.Stream);
@@ -125,7 +125,7 @@ The loop above works, but most hosts would rather register a callback and get on
 else. `SspDeviceHost` owns the poll loop and raises events as they arrive:
 
 ```csharp
-using CCS.SspNet.Hosting;
+using SmileySecure.Net.Hosting;
 
 using var host = new SspDeviceHost(validator);
 

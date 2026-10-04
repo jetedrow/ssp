@@ -1,6 +1,6 @@
 # Architecture
 
-SSP.net is built in four layers. Each one depends only on the layer below it, and each is testable
+SmileySecure.Net is built in four layers. Each one depends only on the layer below it, and each is testable
 on its own without a device attached.
 
 ```

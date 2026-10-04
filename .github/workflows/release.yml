@@ -51,31 +51,31 @@ jobs:
       - name: Work out the version
         id: version
         run: |
-          prefix=$(dotnet msbuild src/CCS.SspNet/CCS.SspNet.csproj -getProperty:VersionPrefix)
+          prefix=$(dotnet msbuild src/SmileySecure.Net/SmileySecure.Net.csproj -getProperty:VersionPrefix)
           suffix="${PRERELEASE_LABEL}.${GITHUB_RUN_NUMBER}"
           echo "suffix=${suffix}" >> "$GITHUB_OUTPUT"
           echo "version=${prefix}-${suffix}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${prefix}-${suffix}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Restore
-        run: dotnet restore src/CCS.SspNet.sln
+        run: dotnet restore src/SmileySecure.Net.sln
 
       - name: Build
         run: >
-          dotnet build src/CCS.SspNet.sln
+          dotnet build src/SmileySecure.Net.sln
           --configuration Release --no-restore
           -p:VersionSuffix=${{ steps.version.outputs.suffix }}
 
       # The full suite, as a push to main runs it. Hardware tests need a device and never run here.
       - name: Test
         run: >
-          dotnet test src/CCS.SspNet.sln
+          dotnet test src/SmileySecure.Net.sln
           --configuration Release --no-build
           --filter "Category!=Hardware"
 
       - name: Pack
         run: >
-          dotnet pack src/CCS.SspNet.sln
+          dotnet pack src/SmileySecure.Net.sln
           --configuration Release --no-build
           -p:VersionSuffix=${{ steps.version.outputs.suffix }}
           --output ${{ runner.temp }}/packages

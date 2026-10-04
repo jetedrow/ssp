@@ -29,17 +29,17 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore src/CCS.SspNet.sln
+        run: dotnet restore src/SmileySecure.Net.sln
 
       - name: Build
-        run: dotnet build src/CCS.SspNet.sln --configuration Release --no-restore
+        run: dotnet build src/SmileySecure.Net.sln --configuration Release --no-restore
 
       # Pull requests run the fast tier only. Slow and hardware tests are excluded here and
       # run on push to the default branch; hardware tests never run in CI at all.
       - name: Test (fast tier)
         if: github.event_name == 'pull_request'
         run: >
-          dotnet test src/CCS.SspNet.sln
+          dotnet test src/SmileySecure.Net.sln
           --configuration Release --no-build
           --filter "Category!=Slow&Category!=Hardware"
           --logger "trx;LogFileName=test-results.trx"
@@ -48,7 +48,7 @@ jobs:
       - name: Test (full suite)
         if: github.event_name != 'pull_request'
         run: >
-          dotnet test src/CCS.SspNet.sln
+          dotnet test src/SmileySecure.Net.sln
           --configuration Release --no-build
           --filter "Category!=Hardware"
           --logger "trx;LogFileName=test-results.trx"
@@ -79,7 +79,7 @@ jobs:
 
       - name: Pack
         run: >
-          dotnet pack src/CCS.SspNet.sln
+          dotnet pack src/SmileySecure.Net.sln
           --configuration Release
           --output ${{ runner.temp }}/packages
 
