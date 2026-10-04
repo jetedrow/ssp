@@ -23,6 +23,15 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
+  <!-- Versioning. The release line lives here; the release workflow supplies the pre-release
+       label (for example preview.7) through VersionSuffix. A local or CI build gets "dev", so a
+       package built anywhere but the release workflow can never be mistaken for a published one.
+       See docs/releasing.md. -->
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">dev</VersionSuffix>
+  </PropertyGroup>
+
   <!-- Shared package metadata. Individual projects override PackageId/Description. -->
   <PropertyGroup>
     <Authors>Jeff Tedrow</Authors>
@@ -32,7 +41,12 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/jetedrow/ssp</PackageProjectUrl>
     <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>ssp;essp;smiley-secure-protocol;innovative-technology;banknote-validator;serial</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 
 </Project>

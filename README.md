@@ -27,13 +27,19 @@ what is implemented and against which protocol version.
 | `SSP.net` | The library. No transport dependencies. |
 | `SSP.net.Serial` | Serial port transport, for devices on a COM port. |
 
-Both target `netstandard2.0` and `net10.0`.
+Both target `netstandard2.0` and `net10.0`. Pre-releases are on nuget.org:
+
+```bash
+dotnet add package SSP.net --prerelease
+dotnet add package SSP.net.Serial --prerelease
+```
 
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [Protocol support](docs/protocol-support.md)
+- [Releasing](docs/releasing.md)
 
 ## Building
 

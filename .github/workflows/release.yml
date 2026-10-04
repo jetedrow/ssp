@@ -1,0 +1,147 @@
+name: Release
+
+# Publishes SSP.net and SSP.net.Serial to nuget.org. Run by hand only: Actions > Release > Run
+# workflow. Each run publishes 1.0.0-preview.<N>, where N is this workflow's run number, then tags
+# the commit and creates a GitHub pre-release. See docs/releasing.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build, test and pack only; publish nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Two releases racing each other would interleave tags and pushes.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  # The pre-release label. Bump VersionPrefix in Directory.Build.props to change the release line.
+  PRERELEASE_LABEL: preview
+
+jobs:
+  pack:
+    name: Build, test and pack
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Refuse anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are cut from main only; this run is on ${GITHUB_REF}."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Work out the version
+        id: version
+        run: |
+          prefix=$(dotnet msbuild src/CCS.SspNet/CCS.SspNet.csproj -getProperty:VersionPrefix)
+          suffix="${PRERELEASE_LABEL}.${GITHUB_RUN_NUMBER}"
+          echo "suffix=${suffix}" >> "$GITHUB_OUTPUT"
+          echo "version=${prefix}-${suffix}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${prefix}-${suffix}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore
+        run: dotnet restore src/CCS.SspNet.sln
+
+      - name: Build
+        run: >
+          dotnet build src/CCS.SspNet.sln
+          --configuration Release --no-restore
+          -p:VersionSuffix=${{ steps.version.outputs.suffix }}
+
+      # The full suite, as a push to main runs it. Hardware tests need a device and never run here.
+      - name: Test
+        run: >
+          dotnet test src/CCS.SspNet.sln
+          --configuration Release --no-build
+          --filter "Category!=Hardware"
+
+      - name: Pack
+        run: >
+          dotnet pack src/CCS.SspNet.sln
+          --configuration Release --no-build
+          -p:VersionSuffix=${{ steps.version.outputs.suffix }}
+          --output ${{ runner.temp }}/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ${{ runner.temp }}/packages/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish to nuget.org
+    needs: pack
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    # The environment is where NUGET_API_KEY can live, and where required reviewers can be added
+    # so that a run waits for approval before anything is pushed.
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/SSP.net/${{ needs.pack.outputs.version }}
+    permissions:
+      contents: write   # to create the tag and the GitHub release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+
+      - name: Check the API key is set
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::The NUGET_API_KEY secret is missing. See docs/releasing.md."
+            exit 1
+          fi
+
+      # Pushing the .nupkg also pushes the matching .snupkg symbols package. --skip-duplicate makes
+      # a re-run of a half-finished release safe.
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: >
+          dotnet nuget push "packages/*.nupkg"
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Tag and create the GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.pack.outputs.version }}
+        run: >
+          gh release create "v${VERSION}"
+          packages/*.nupkg packages/*.snupkg
+          --target "${GITHUB_SHA}"
+          --title "v${VERSION}"
+          --prerelease
+          --generate-notes
