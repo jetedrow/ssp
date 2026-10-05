@@ -37,6 +37,12 @@ dotnet add package SmileySecure.Net --prerelease
 dotnet add package SmileySecure.Net.Serial --prerelease
 ```
 
+## C++ (ESP32 and Android)
+
+A C++17 port for microcontrollers and Android lives in [`cpp/`](cpp/README.md). It has no
+operating system dependencies and is being ported from this library layer by layer; its README
+says which layers are in so far.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
