@@ -16,8 +16,8 @@ This is being ported layer by layer from the .NET library, one pull request at a
 | --- | --- | --- |
 | Framing: CRC-16, byte stuffing, sequence flag, retries, timeouts | `SspLink` and friends | Done: `Link`, `Packet`, `read_packet`, `write_packet` |
 | Command codec: messages, replies, values, event table, poll decoder, setup reply | `SspMessage`, `SspReply`, `SspPollDecoder`, `SspSetup` | Done |
-| Procedural device API | `SspBus`, `SspDevice` | Next |
-| Event-driven poll host, with escrow hold and reject | `SspDeviceHost` | Planned |
+| Procedural device API | `SspBus`, `SspDevice` | Done: `Bus`, `Device` |
+| Event-driven poll host, with escrow hold and reject | `SspDeviceHost` | Done: `DeviceHost` |
 | eSSP encryption | `SspEncryptionSession` | Planned |
 | Firmware and dataset download | `SspFirmwareDownloader` | Planned |
 | ESP-IDF component (also usable from Arduino-ESP32) with a UART stream | — | Planned |
@@ -39,27 +39,36 @@ public:
     int read(uint8_t* data, size_t size, uint32_t timeout_ms) override; // 0 on timeout, <0 if closed
 };
 
-MyUart uart;
-Link link(uart);  // one per bus; serializes every exchange
+MyUart uart;                      // 9600 baud, 8 data bits, 2 stop bits, no parity
+Bus bus(uart);                    // one per wire; serializes every exchange
+Device& validator = *bus.device(0x00);
 
-auto poll = make_message(Command::Poll);
-auto packet = link.exchange(0x00, *poll);
-if (!packet) {
-    log(packet.status().describe());  // "no usable reply: ... (last attempt: timeout)"
+Result<Setup> setup = validator.connect();   // sync, agree a protocol version, read the setup
+if (!setup) {
+    log(setup.status().describe());          // "no usable reply: ... (last attempt: timeout)"
     return;
 }
+validator.set_channel_inhibits(uint16_t{0xFFFF});
+validator.enable();
 
-auto reply = Reply::parse(packet->data);
-if (reply && reply->ok()) {
-    PollResult events = decode_poll(reply->data, /* protocol version */ 7);
-    for (const PollEvent& event : events.events) {
-        if (event.event() == Event::NoteCredit) { /* ... */ }
-    }
-}
+DeviceHost host(validator);
+host.on_event = [&](DeviceEvent& e) {
+    if (e.note_in_escrow() && !want_this_note(e.event)) e.escrow = EscrowAction::Reject;
+    if (e.event.event() == Event::NoteCredit) credit(setup->channels.at(e.event.data[0] - 1));
+};
+host.on_fault = [](const PollFault& fault) { log(fault.to_string()); };
+
+host.start();   // or host.run() to block this task, or host.poll_once() from your own loop
 ```
 
-The device API that comes next wraps the message-and-reply step into calls like
-`device.poll()` and `device.connect()`.
+A poll is what lets a validator stack the note in its escrow, so the host hands each event to
+the handler between one poll and the next, and sends the hold or reject a handler asks for
+before polling again. The loop never stops on an error: failed polls, failed escrow commands and
+replies it could only partly read all go to `on_fault`.
+
+`Device` also has the raw `send()`, so a command this library has no name for is still reachable,
+and every other call the .NET `SspDevice` has: `sync`, `reset`, `disable`, `hold`,
+`reject_banknote`, `serial_number`, `firmware_version`, `poll_with_ack` and so on.
 
 ## Design choices
 
@@ -72,6 +81,8 @@ library's exception types. A `Status` carries a fixed message and costs no alloc
 **Blocking calls, one mutex.** The .NET library is async; this one blocks, which suits a FreeRTOS
 task or an Android worker thread. A `Link` holds a mutex for the length of each exchange, so a
 command from another task queues behind a poll rather than interleaving with it on the wire.
+`DeviceHost` can run on its own `std::thread`, block a task you give it, or be stepped one poll at
+a time from a loop you already have.
 
 **No allocation on the wire path.** Reading and writing a packet use fixed buffers sized to the
 protocol's 260-byte maximum. Payloads above that layer are `std::vector`, which is fine on an ESP32

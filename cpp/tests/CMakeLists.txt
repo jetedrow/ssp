@@ -2,7 +2,9 @@
 add_executable(smileysecure_tests
     test_main.cpp
     test_codec.cpp
+    test_device.cpp
     test_framing.cpp
+    test_host.cpp
     test_link.cpp
     test_manual_examples.cpp
 )

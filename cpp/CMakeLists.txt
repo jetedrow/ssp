@@ -17,8 +17,10 @@ set(SMILEYSECURE_SOURCES
     src/clock.cpp
     src/codes.cpp
     src/crc.cpp
+    src/device.cpp
     src/error.cpp
     src/event_table.cpp
+    src/host.cpp
     src/link.cpp
     src/message.cpp
     src/packet.cpp

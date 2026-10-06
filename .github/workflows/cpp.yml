@@ -24,6 +24,10 @@ jobs:
           - name: GCC, address and UB sanitizers
             cxx: g++
             flags: -fsanitize=address,undefined -fno-sanitize-recover=all
+          # The poll host runs on its own thread, so check it for races too.
+          - name: GCC, thread sanitizer
+            cxx: g++
+            flags: -fsanitize=thread
           # ESP-IDF builds without exceptions or RTTI by default, so the core has to as well.
           - name: Clang, no exceptions or RTTI
             cxx: clang++
