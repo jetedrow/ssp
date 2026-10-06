@@ -3,6 +3,8 @@
 #include "smileysecure/esp32/host_task.hpp"
 
 #include "esp_pthread.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace smileysecure {
 namespace esp32 {
