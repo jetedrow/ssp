@@ -89,13 +89,13 @@ inline std::vector<uint8_t> bytes(const std::string& text) {
         if (!(condition)) ::sstest::report(__FILE__, __LINE__, "CHECK(" #condition ")");   \
     } while (0)
 
-#define CHECK_EQ(actual, expected)                                                               \
+#define CHECK_EQ(actual, ...)                                                               \
     do {                                                                                         \
         const auto sstest_actual = (actual);                                                     \
-        const auto sstest_expected = (expected);                                                 \
+        const auto sstest_expected = (__VA_ARGS__);                                              \
         if (!(sstest_actual == sstest_expected)) {                                               \
             ::sstest::report(__FILE__, __LINE__,                                                 \
-                             "CHECK_EQ(" #actual ", " #expected "): got " +                      \
+                             "CHECK_EQ(" #actual ", " #__VA_ARGS__ "): got " +                      \
                                  ::sstest::show(sstest_actual) + ", expected " +                  \
                                  ::sstest::show(sstest_expected));                               \
         }                                                                                        \
