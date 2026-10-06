@@ -1,0 +1,5 @@
+version: "0.1.0"
+description: Smiley Secure Protocol (SSP) for banknote validators, coin hoppers and payout units
+url: https://github.com/jetedrow/SmileySecure.Net
+dependencies:
+  idf: ">=5.0"

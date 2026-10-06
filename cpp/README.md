@@ -20,7 +20,7 @@ This is being ported layer by layer from the .NET library, one pull request at a
 | Event-driven poll host, with escrow hold and reject | `SspDeviceHost` | Done: `DeviceHost` |
 | eSSP encryption | `SspEncryptionSession` | Planned |
 | Firmware and dataset download | `SspFirmwareDownloader` | Planned |
-| ESP-IDF component (also usable from Arduino-ESP32) with a UART stream | — | Planned |
+| ESP-IDF component (also usable from Arduino-ESP32) with a UART stream | — | Done: `esp32::UartStream`, `esp32::start_pinned` |
 | Android NDK/JNI wrapper and Gradle AAR | — | Planned |
 
 The protocol knowledge — payload lengths, byte orders, the manual's misprints — is the .NET
@@ -69,6 +69,69 @@ replies it could only partly read all go to `on_fault`.
 `Device` also has the raw `send()`, so a command this library has no name for is still reachable,
 and every other call the .NET `SspDevice` has: `sync`, `reset`, `disable`, `hold`,
 `reject_banknote`, `serial_number`, `firmware_version`, `poll_with_ack` and so on.
+
+## On an ESP32
+
+`cpp/idf/smileysecure` is an ESP-IDF component (ESP-IDF 5.0 or later). It builds the core
+library plus two ESP32 pieces:
+
+- `esp32::UartStream`, a `Stream` over one of the chip's UARTs, set up the way SSP wants it: 8
+  data bits, no parity, 2 stop bits, no flow control, 9600 baud.
+- `esp32::start_pinned()`, which starts a `DeviceHost` on its own task pinned to a core.
+
+Add it to a project's `main/idf_component.yml`:
+
+```yaml
+dependencies:
+  smileysecure:
+    git: https://github.com/jetedrow/SmileySecure.Net.git
+    path: cpp/idf/smileysecure
+```
+
+Or copy or submodule the repository and point `EXTRA_COMPONENT_DIRS` at `cpp/idf`, as the example
+does. An Arduino-ESP32 sketch can use it the same way when Arduino is built as an ESP-IDF
+component.
+
+```cpp
+#include <smileysecure/smileysecure.hpp>
+#include <smileysecure/esp32/host_task.hpp>
+#include <smileysecure/esp32/uart_stream.hpp>
+
+esp32::UartConfig config;
+config.port = UART_NUM_1;
+config.tx_pin = 17;
+config.rx_pin = 16;
+
+static esp32::UartStream uart(config);   // check uart.status() == ESP_OK
+static Bus bus(uart);
+// ... connect, set_channel_inhibits, enable, build a DeviceHost as above ...
+
+esp32::start_pinned(host);               // second core, priority 5, 6 KB stack
+```
+
+**Sharing the poll core with other peripherals.** The poll loop spends nearly all its time
+blocked, waiting on the UART or on the poll interval, so it leaves the core free for other work.
+There are two ways to put something else, an RFID reader for instance, on the same core:
+
+1. Give it its own task pinned to the same core at the same priority, with
+   `xTaskCreatePinnedToCore(..., poll_task.priority, ..., poll_task.core)`. FreeRTOS switches
+   between the two whenever one blocks. This is what
+   [examples/esp32_validator](examples/esp32_validator) does.
+2. Run one task of your own and call `host.poll_once()` from it between reads of the other
+   peripherals. Each pass round the loop has to come back to the validator well inside its
+   10-second escrow timeout; aim for the 200 ms the host uses by default.
+
+Event handlers run on the poll task, so a handler that blocks holds up polling too. Hand slow
+work, such as a network call, to another task.
+
+The example builds in CI for the ESP32, ESP32-S3 and ESP32-P4 with ESP-IDF 5.4, and for the
+ESP32 with ESP-IDF 5.0:
+
+```bash
+cd cpp/examples/esp32_validator
+idf.py set-target esp32s3
+idf.py build flash monitor
+```
 
 ## Design choices
 

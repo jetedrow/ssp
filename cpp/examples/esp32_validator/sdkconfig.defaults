@@ -1,0 +1,2 @@
+# The poll host is a std::thread; give pthreads a sensible default stack.
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
